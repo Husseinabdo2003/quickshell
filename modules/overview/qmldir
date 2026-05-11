@@ -1,0 +1,4 @@
+WorkspaceOverview 1.0 WorkspaceOverview.qml
+WorkspacePreview 1.0 WorkspacePreview.qml
+WindowPreview 1.0 WindowPreview.qml
+singleton OverviewConfig 1.0 OverviewConfig.qml

@@ -1,0 +1,43 @@
+{
+    "generatedBy": "hypr/lua/dashboard.lua",
+    "sections": {
+        "items": [
+        {
+            "category": "uni",
+            "type": "project",
+            "title": "Autonomous Systems Project",
+            "course": "Autonomous Systems",
+            "date": "2026-05-20",
+            "priority": "high",
+            "status": "in-progress"
+        },
+        {
+            "category": "uni",
+            "type": "quiz",
+            "title": "CS4 Quiz",
+            "course": "CS4",
+            "date": "2026-05-18",
+            "priority": "medium",
+            "status": "upcoming"
+        },
+        {
+            "category": "uni",
+            "type": "exam",
+            "title": "Circuits 2 Final",
+            "course": "Circuits 2",
+            "date": "2026-06-01",
+            "priority": "high",
+            "status": "upcoming"
+        },
+        {
+            "category": "todo",
+            "type": "task",
+            "title": "Fix dashboard layout",
+            "course": "Rice",
+            "date": "2026-05-12",
+            "priority": "medium",
+            "status": "upcoming"
+        }
+        ]
+    }
+}
