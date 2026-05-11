@@ -1,9 +1,13 @@
 import Quickshell
 import QtQuick
+import Quickshell.Io
 
 import "../../theme"
+import "../dashboard"
 
 PanelWindow {
+    id: barWindow
+
     anchors {
         left: true
         top: true
@@ -14,11 +18,28 @@ PanelWindow {
     color: "transparent"
 
     Rectangle {
+        id: barRoot
+
         anchors.fill: parent
         color: "transparent"
 
-        LeftSection {}
-        CenterSection {}
-        RightSection {}
+        LeftSection {
+            id: leftSection
+        }
+
+        CenterSection {
+            id: centerSection
+        }
+
+        RightSection {
+            id: rightSection
+        }
+
+        Dashboard {
+            id: dashboard
+
+            anchorWindow: barWindow
+            attachItem: centerSection
+        }
     }
 }

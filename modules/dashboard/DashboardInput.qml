@@ -1,4 +1,5 @@
 import QtQuick
+
 import "../../theme"
 
 Rectangle {
@@ -7,18 +8,27 @@ Rectangle {
     property alias text: input.text
     property string label: ""
 
+    function forceInputFocus() {
+        input.forceActiveFocus()
+    }
+
     height: 42
     radius: 16
 
-    color: WalTheme.surfaceAlpha
+    color: input.activeFocus
+        ? Qt.rgba(1, 1, 1, 0.10)
+        : WalTheme.surfaceAlpha
+
     border.width: 1
-    border.color: WalTheme.border
+    border.color: input.activeFocus
+        ? WalTheme.accent
+        : WalTheme.border
 
     Column {
         anchors.fill: parent
         anchors.leftMargin: 10
         anchors.rightMargin: 10
-        anchors.topMargin: 4
+        anchors.topMargin: 5
         anchors.bottomMargin: 4
         spacing: 1
 
@@ -32,10 +42,22 @@ Rectangle {
             id: input
 
             width: parent.width
+
             color: WalTheme.fg
             font.pixelSize: 12
+
             clip: true
             selectByMouse: true
+            cursorVisible: activeFocus
+        }
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.IBeamCursor
+
+        onClicked: {
+            input.forceActiveFocus()
         }
     }
 }

@@ -12,7 +12,6 @@ import "modules/osd"
 import "modules/notifications"
 import "modules/wallpaperPicker"
 import "modules/overview"
-import "modules/dashboard"
 
 ShellRoot {
     IpcHandler {
@@ -47,5 +46,4 @@ ShellRoot {
 
     WorkspaceOverview {}
 
-    Dashboard{}
 }
