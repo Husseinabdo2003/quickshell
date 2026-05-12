@@ -2,6 +2,7 @@ import Quickshell
 import QtQuick
 import Quickshell.Io
 
+import "../../components"
 import "../../theme"
 import "../../services"
 
@@ -13,7 +14,7 @@ PanelWindow {
     }
 
     margins {
-        bottom: 100 
+        bottom: 100
     }
 
     exclusionMode: ExclusionMode.Ignore
@@ -76,21 +77,19 @@ PanelWindow {
                 const value = this.text.trim()
 
                 root.lockName = "Num Lock"
-                root.lockIcon = ""
+                root.lockIcon = "󰎠"
                 root.lockState = value === "1" ? "ON" : "OFF"
                 root.show()
             }
         }
     }
 
-    Rectangle {
+    Card {
         anchors.fill: parent
 
-        radius: 16
-        color: Theme.pillBg
-
-        border.width: 1
-        border.color: Theme.border
+        cardRadius: 16
+        cardColor: Theme.pillBg
+        cardBorderColor: WalTheme.border
 
         Row {
             id: contentRow
@@ -111,8 +110,9 @@ PanelWindow {
                     anchors.centerIn: parent
 
                     text: root.lockIcon
-                    color: Theme.text
-                    font.family: Theme.fontFamily
+                    color: WalTheme.fg
+
+                    font.family: "JetBrainsMono Nerd Font"
                     font.pixelSize: 16
                 }
             }
@@ -123,14 +123,11 @@ PanelWindow {
                 width: 92
                 height: parent.height
 
-                Text {
+                TitleText {
                     anchors.centerIn: parent
 
                     text: root.lockName
-                    color: Theme.text
-                    font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
-                    font.bold: true
                 }
             }
 
@@ -140,14 +137,13 @@ PanelWindow {
                 width: 34
                 height: parent.height
 
-                Text {
+                MetaText {
                     anchors.centerIn: parent
 
                     text: root.lockState
-                    color: root.lockState === "ON" ? Theme.accent : Theme.textMuted
-                    font.family: Theme.fontFamily
+                    accentText: root.lockState === "ON"
+                    boldText: true
                     font.pixelSize: Theme.fontSize
-                    font.bold: true
                 }
             }
         }

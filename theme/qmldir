@@ -1,2 +1,3 @@
 singleton Theme 1.0 Theme.qml
 singleton WalTheme 1.0 WalTheme.qml
+singleton Animations 1.0 Animations.qml

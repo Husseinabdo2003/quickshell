@@ -1,8 +1,9 @@
 import QtQuick
 
+import "../../components"
 import "../../theme"
 
-Rectangle {
+Card {
     id: root
 
     property string itemId: ""
@@ -17,25 +18,19 @@ Rectangle {
 
     height: 88
 
-    radius: 30
-    color: Qt.rgba(0.055, 0.02, 0.045, 0.82)
-
-    border.width: 1
-    border.color: WalTheme.border
+    cardRadius: 30
+    cardColor: Theme.pillBg
+    cardBorderColor: WalTheme.border
 
     Row {
         anchors.fill: parent
         anchors.margins: 14
         spacing: 12
 
-        Rectangle {
-            width: 7
+        AccentStrip {
             height: parent.height - 10
-            radius: 4
-
-            color: root.priority === "high"
-                ? WalTheme.urgent
-                : WalTheme.accent
+            danger: root.priority === "high"
+            accent: root.priority !== "high"
 
             anchors.verticalCenter: parent.verticalCenter
         }
@@ -49,37 +44,21 @@ Rectangle {
                 width: parent.width
                 spacing: 8
 
-                Rectangle {
-                    width: typeText.implicitWidth + 14
-                    height: 22
-                    radius: 11
-
-                    color: root.priority === "high"
-                        ? WalTheme.urgentAlpha
-                        : WalTheme.accentAlpha
-
-                    Text {
-                        id: typeText
-
-                        anchors.centerIn: parent
-                        text: root.itemType.toUpperCase()
-
-                        color: WalTheme.fg
-                        font.pixelSize: 10
-                        font.bold: true
-                    }
+                Badge {
+                    text: root.itemType.toUpperCase()
+                    danger: root.priority === "high"
+                    accent: root.priority !== "high"
+                    badgeHeight: 22
+                    badgeRadius: 11
+                    fontSize: 10
+                    horizontalPadding: 14
                 }
 
-                Text {
-                    width: parent.width - typeText.implicitWidth - 32
+                TitleText {
+                    width: parent.width - 96
 
                     text: root.title
-                    color: WalTheme.fg
-
                     font.pixelSize: 15
-                    font.bold: true
-
-                    elide: Text.ElideRight
                 }
             }
 
@@ -87,69 +66,34 @@ Rectangle {
                 width: parent.width
                 spacing: 10
 
-                Text {
+                MetaText {
                     text: root.course
-                    color: WalTheme.fgMuted
-
-                    font.pixelSize: 12
                     width: parent.width * 0.40
-
-                    elide: Text.ElideRight
                 }
 
-                Text {
+                MetaText {
                     text: root.date
-                    color: WalTheme.fgMuted
-
-                    font.pixelSize: 12
                 }
 
-                Text {
+                MetaText {
                     text: root.status
-                    color: WalTheme.fgMuted
-
-                    font.pixelSize: 12
-                    elide: Text.ElideRight
+                    width: parent.width * 0.25
                 }
             }
         }
 
-        Rectangle {
-            width: 34
-            height: 34
-            radius: 17
+        IconButton {
+            buttonSize: 34
+            buttonRadius: 17
+            iconSize: 18
 
-            color: deleteMouse.containsMouse
-                ? WalTheme.urgentAlpha
-                : Qt.rgba(1, 1, 1, 0.05)
-
-            border.width: 1
-            border.color: deleteMouse.containsMouse
-                ? WalTheme.urgent
-                : WalTheme.border
+            icon: "×"
+            danger: true
 
             anchors.verticalCenter: parent.verticalCenter
 
-            Text {
-                anchors.centerIn: parent
-
-                text: "×"
-                color: WalTheme.fg
-
-                font.pixelSize: 18
-                font.bold: true
-            }
-
-            MouseArea {
-                id: deleteMouse
-
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-
-                onClicked: {
-                    root.removeRequested(root.itemId)
-                }
+            onClicked: {
+                root.removeRequested(root.itemId)
             }
         }
     }

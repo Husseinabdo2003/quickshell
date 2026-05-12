@@ -1,13 +1,10 @@
 import QtQuick
 
 import "../../theme"
-import "../../components"
 import "../../widgets"
 
 Row {
-    anchors.right: parent.right
-    anchors.verticalCenter: parent.verticalCenter
-    anchors.rightMargin: Theme.margin
+    id: root
 
     spacing: Theme.spacing
 

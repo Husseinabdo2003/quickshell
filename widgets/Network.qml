@@ -6,13 +6,13 @@ import Quickshell.Networking
 import "../components"
 import "../theme"
 
-BarPill {
+BarInfoPill {
     id: root
 
     property var connectedDevice: Networking.devices.values.find(device => device.connected)
     property var connectedNetwork: connectedDevice && connectedDevice.networks
-                                   ? connectedDevice.networks.values.find(network => network.connected)
-                                   : null
+        ? connectedDevice.networks.values.find(network => network.connected)
+        : null
 
     property real lastRx: 0
     property real lastTx: 0
@@ -20,6 +20,7 @@ BarPill {
 
     property string downSpeed: "--"
     property string upSpeed: "--"
+
     property var speedCommand: [
         "sh",
         "-c",
@@ -30,17 +31,20 @@ BarPill {
         "printf \"%s %s\" \"$rx\" \"$tx\""
     ]
 
+    readonly property string networkName: connectedDevice === undefined
+        ? ""
+        : connectedNetwork !== undefined && connectedNetwork !== null
+            ? "  " + connectedNetwork.name
+            : "󰈀  " + connectedDevice.name
+
     minPillWidth: 260
 
-    label: connectedDevice === undefined ? "󰤭  Offline"
-           : networkName + "  󰇚 " + downSpeed + "  󰕒 " + upSpeed
-
-    readonly property string networkName: connectedDevice === undefined ? ""
-                                          : connectedNetwork !== undefined && connectedNetwork !== null
-                                          ? "  " + connectedNetwork.name
-                                          : "󰈀  " + connectedDevice.name
+    fullLabel: connectedDevice === undefined
+        ? "󰤭  Offline"
+        : networkName + "  󰇚 " + downSpeed + "  󰕒 " + upSpeed
 
     strong: connectedDevice !== undefined
+    interactive: true
 
     function formatSpeed(bytesPerSecond) {
         if (bytesPerSecond < 1024)
@@ -102,7 +106,9 @@ BarPill {
         running: connectedDevice !== undefined
         repeat: true
 
-        onTriggered: netSpeedProc.exec(root.speedCommand)
+        onTriggered: {
+            netSpeedProc.exec(root.speedCommand)
+        }
     }
 
     onConnectedDeviceChanged: {
@@ -122,12 +128,11 @@ BarPill {
             netSpeedProc.exec(root.speedCommand)
     }
 
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-
-        onClicked: {
-            Quickshell.execDetached(["bash", "-c", "kitty -e nmtui"])
-        }
+    onClicked: {
+        Quickshell.execDetached([
+            "bash",
+            "-lc",
+            "kitty -e nmtui"
+        ])
     }
 }

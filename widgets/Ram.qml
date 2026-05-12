@@ -4,7 +4,7 @@ import Quickshell.Io
 import "../components"
 import "../theme"
 
-BarPill {
+BarInfoPill {
     id: root
 
     property int ramUsage: 0
@@ -12,15 +12,20 @@ BarPill {
 
     minPillWidth: 72
 
-    label: ready ? "  " + ramUsage + "%" : "  --%"
-    strong: ready && ramUsage >= 70
+    icon: ""
+    value: ready ? ramUsage + "%" : "--%"
 
-    textColor: ready && ramUsage >= 85 ? Theme.accent : Theme.text
+    strong: ready && ramUsage >= 70
+    textColor: ready && ramUsage >= 85 ? WalTheme.urgent : WalTheme.fg
 
     Process {
         id: ramProc
 
-        command: ["sh", "-c", "free | awk '/Mem:/ {printf \"%d\", ($3/$2) * 100}'"]
+        command: [
+            "sh",
+            "-c",
+            "free | awk '/Mem:/ {printf \"%d\", ($3/$2) * 100}'"
+        ]
 
         stdout: SplitParser {
             onRead: function(data) {
@@ -43,8 +48,20 @@ BarPill {
         running: true
         repeat: true
 
-        onTriggered: ramProc.exec(["sh", "-c", "free | awk '/Mem:/ {printf \"%d\", ($3/$2) * 100}'"])
+        onTriggered: {
+            ramProc.exec([
+                "sh",
+                "-c",
+                "free | awk '/Mem:/ {printf \"%d\", ($3/$2) * 100}'"
+            ])
+        }
     }
 
-    Component.onCompleted: ramProc.exec(["sh", "-c", "free | awk '/Mem:/ {printf \"%d\", ($3/$2) * 100}'"])
+    Component.onCompleted: {
+        ramProc.exec([
+            "sh",
+            "-c",
+            "free | awk '/Mem:/ {printf \"%d\", ($3/$2) * 100}'"
+        ])
+    }
 }

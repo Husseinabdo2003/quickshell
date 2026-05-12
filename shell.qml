@@ -14,6 +14,8 @@ import "modules/wallpaperPicker"
 import "modules/overview"
 
 ShellRoot {
+    id: root
+
     IpcHandler {
         target: "shell"
 
@@ -28,6 +30,29 @@ ShellRoot {
         function closeOverview(): void {
             ShellState.closeOverview()
         }
+
+        function showPowerProfileOsd(): void {
+            ShellState.powerProfileOsdOpen = false
+            ShellState.powerProfileOsdOpen = true
+        }
+    }
+
+    Timer {
+        id: startupWallpaperRestoreTimer
+
+        interval: 900
+        running: true
+        repeat: false
+
+        onTriggered: {
+            Quickshell.execDetached([
+                "qs",
+                "ipc",
+                "call",
+                "wallpaperPicker",
+                "restore"
+            ])
+        }
     }
 
     TopBar {}
@@ -39,11 +64,11 @@ ShellRoot {
     VolumeOSD {}
     BrightnessOSD {}
     LockOSD {}
+    PowerProfileOSD {}
 
     NotificationPopup {}
     NotificationCenter {}
     WallpaperPicker {}
 
     WorkspaceOverview {}
-
 }

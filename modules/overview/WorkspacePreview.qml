@@ -3,10 +3,11 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Hyprland
 
+import "../../components"
 import "../../theme"
 import "../../services"
 
-Rectangle {
+Card {
     id: root
 
     required property string workspaceName
@@ -40,28 +41,28 @@ Rectangle {
     width: previewWidth
     height: previewHeight
 
-    radius: 4
-    clip: true
-
-    color: manualDropHover
-        ? alpha(Theme.accent, 0.18)
+    cardRadius: 4
+    cardColor: manualDropHover
+        ? alpha(WalTheme.accent, 0.18)
         : isFocused
-            ? alpha(Theme.accent, 0.11)
+            ? alpha(WalTheme.accent, 0.11)
             : Qt.rgba(0, 0, 0, 0.24)
 
-    border.width: manualDropHover || isFocused ? 2 : 1
-    border.color: manualDropHover
-        ? Theme.accent
+    cardBorderWidth: manualDropHover || isFocused ? 2 : 1
+    cardBorderColor: manualDropHover
+        ? WalTheme.accent
         : isFocused
-            ? alpha(Theme.accent, 0.80)
-            : alpha(Theme.border, 0.72)
+            ? alpha(WalTheme.accent, 0.80)
+            : alpha(WalTheme.border, 0.72)
 
     function alpha(color, opacity) {
         return Qt.rgba(color.r, color.g, color.b, opacity)
     }
 
     function targetName() {
-        return root.isSpecial ? root.workspaceName.replace("special:", "") : root.workspaceName
+        return root.isSpecial
+            ? root.workspaceName.replace("special:", "")
+            : root.workspaceName
     }
 
     function normalizedAddress(address) {
@@ -77,7 +78,11 @@ Rectangle {
     }
 
     onManualDropHoverChanged: {
-        if (manualDropHover && ShellState.dragReleaseRequested && ShellState.draggedWindowAddress.length > 0) {
+        if (
+            manualDropHover
+            && ShellState.dragReleaseRequested
+            && ShellState.draggedWindowAddress.length > 0
+        ) {
             moveWindowToWorkspace(ShellState.draggedWindowAddress)
         }
     }
@@ -86,7 +91,11 @@ Rectangle {
         target: ShellState
 
         function onDragReleaseRequestedChanged() {
-            if (ShellState.dragReleaseRequested && root.manualDropHover && ShellState.draggedWindowAddress.length > 0) {
+            if (
+                ShellState.dragReleaseRequested
+                && root.manualDropHover
+                && ShellState.draggedWindowAddress.length > 0
+            ) {
                 root.moveWindowToWorkspace(ShellState.draggedWindowAddress)
             }
         }
@@ -152,7 +161,10 @@ Rectangle {
         if (count === 3 && index === 0)
             return Math.floor((root.contentWidth - gap) / 2)
 
-        return Math.floor((root.contentWidth - gap * (tileColumns(count) - 1)) / tileColumns(count))
+        return Math.floor(
+            (root.contentWidth - gap * (tileColumns(count) - 1))
+            / tileColumns(count)
+        )
     }
 
     function tileHeight(index, count) {
@@ -164,7 +176,10 @@ Rectangle {
         if (count === 3 && index === 0)
             return root.contentHeight
 
-        return Math.floor((root.contentHeight - gap * (tileRows(count) - 1)) / tileRows(count))
+        return Math.floor(
+            (root.contentHeight - gap * (tileRows(count) - 1))
+            / tileRows(count)
+        )
     }
 
     function activateWorkspace() {
@@ -186,9 +201,19 @@ Rectangle {
         }
 
         if (root.isSpecial) {
-            Hyprland.dispatch("movetoworkspacesilent special:" + root.targetName() + ",address:" + targetAddress)
+            Hyprland.dispatch(
+                "movetoworkspacesilent special:"
+                + root.targetName()
+                + ",address:"
+                + targetAddress
+            )
         } else {
-            Hyprland.dispatch("movetoworkspacesilent " + root.workspaceName + ",address:" + targetAddress)
+            Hyprland.dispatch(
+                "movetoworkspacesilent "
+                + root.workspaceName
+                + ",address:"
+                + targetAddress
+            )
         }
 
         ShellState.clearDraggedWindow()
@@ -202,9 +227,8 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
 
         onClicked: {
-            if (ShellState.draggedWindowAddress.length === 0) {
+            if (ShellState.draggedWindowAddress.length === 0)
                 root.activateWorkspace()
-            }
         }
     }
 
@@ -233,27 +257,29 @@ Rectangle {
         }
     }
 
-    Rectangle {
+    Card {
         visible: root.validWindows.length === 0
+
         anchors.fill: parent
         anchors.margins: root.contentPadding
         z: 1
 
-        radius: 3
-        color: Qt.rgba(0, 0, 0, 0.16)
+        cardRadius: 3
+        cardColor: Qt.rgba(0, 0, 0, 0.16)
+        cardBorderWidth: 0
 
-        Text {
+        TitleText {
             anchors.centerIn: parent
 
             text: root.displayName
-            color: alpha(Theme.text, 0.42)
-            font.family: Theme.fontFamily
+            muted: true
             font.pixelSize: Theme.fontSize
-            font.bold: true
+
+            opacity: 0.42
         }
     }
 
-    Rectangle {
+    Badge {
         visible: root.validWindows.length > 6
         z: 3
 
@@ -261,29 +287,16 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.margins: 7
 
-        width: moreText.implicitWidth + 14
-        height: 24
-        radius: 12
-
-        color: alpha(Theme.pillBg, 0.86)
-
-        border.width: 1
-        border.color: alpha(Theme.border, 0.7)
-
-        Text {
-            id: moreText
-
-            anchors.centerIn: parent
-
-            text: "+" + (root.validWindows.length - 6)
-            color: Theme.text
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize - 1
-            font.bold: true
-        }
+        text: "+" + (root.validWindows.length - 6)
+        muted: false
+        accent: false
+        badgeHeight: 24
+        badgeRadius: 12
+        fontSize: Theme.fontSize - 1
+        horizontalPadding: 14
     }
 
-    Text {
+    TitleText {
         z: 4
 
         anchors.left: parent.left
@@ -293,10 +306,7 @@ Rectangle {
         visible: root.manualDropHover || root.isFocused
 
         text: root.displayName
-        color: Theme.text
-        font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize - 1
-        font.bold: true
 
         style: Text.Outline
         styleColor: Qt.rgba(0, 0, 0, 0.75)

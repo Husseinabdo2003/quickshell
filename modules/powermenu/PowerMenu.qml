@@ -1,30 +1,16 @@
-import Quickshell
 import QtQuick
+import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 
-import "../../theme"
 import "../../components"
 import "../../services"
+import "../../theme"
 
 PanelWindow {
-
-    IpcHandler {
-        target: "powerMenu"
-
-        function toggle(): void {
-            ShellState.powerMenuOpen = !ShellState.powerMenuOpen
-        }
-
-        function open(): void {
-            ShellState.powerMenuOpen = true
-        }
-
-        function close(): void {
-            ShellState.powerMenuOpen = false
-        }
-    }
-
     id: root
+
+    property bool animating: false
 
     anchors {
         left: true
@@ -37,41 +23,116 @@ PanelWindow {
     aboveWindows: true
     color: "transparent"
 
-    visible: ShellState.powerMenuOpen
+    visible: ShellState.powerMenuOpen || root.animating
+
+    HyprlandFocusGrab {
+        id: focusGrab
+
+        windows: [root]
+        active: ShellState.powerMenuOpen
+
+        onCleared: {
+            root.closePowerMenu()
+        }
+    }
+
+    IpcHandler {
+        target: "powerMenu"
+
+        function toggle(): void {
+            root.togglePowerMenu()
+        }
+
+        function open(): void {
+            root.openPowerMenu()
+        }
+
+        function close(): void {
+            root.closePowerMenu()
+        }
+    }
+
+    Timer {
+        id: animationStopper
+
+        interval: Animations.panel
+        repeat: false
+
+        onTriggered: {
+            root.animating = false
+        }
+    }
+
+    function togglePowerMenu() {
+        if (ShellState.powerMenuOpen)
+            root.closePowerMenu()
+        else
+            root.openPowerMenu()
+    }
+
+    function openPowerMenu() {
+        root.animating = true
+        ShellState.powerMenuOpen = true
+        animationStopper.restart()
+    }
+
+    function closePowerMenu() {
+        root.animating = true
+        ShellState.powerMenuOpen = false
+        animationStopper.restart()
+    }
 
     Rectangle {
         anchors.fill: parent
 
-        visible: ShellState.powerMenuOpen
         enabled: ShellState.powerMenuOpen
 
-        color: Qt.rgba(0, 0, 0, 0.30)
+        color: Qt.rgba(0, 0, 0, ShellState.powerMenuOpen ? 0.30 : 0)
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Animations.popupFade
+                easing.type: Easing.OutCubic
+            }
+        }
 
         MouseArea {
             anchors.fill: parent
 
             onClicked: {
-                ShellState.powerMenuOpen = false
+                root.closePowerMenu()
             }
         }
     }
 
-    Rectangle {
+    Card {
         id: panel
-
-        visible: ShellState.powerMenuOpen
-        enabled: ShellState.powerMenuOpen
 
         width: 520
         height: 260
 
         anchors.centerIn: parent
 
-        radius: 28
-        color: Theme.pillBg
+        cardRadius: 28
+        cardColor: Theme.pillBg
+        cardBorderColor: WalTheme.border
 
-        border.width: 1
-        border.color: Theme.border
+        opacity: ShellState.powerMenuOpen ? 1 : 0
+        scale: ShellState.powerMenuOpen ? 1 : 0.92
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Animations.popupFade
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        Behavior on scale {
+            NumberAnimation {
+                duration: Animations.popupFade
+                easing.type: Easing.OutCubic
+            }
+        }
 
         MouseArea {
             anchors.fill: parent
@@ -82,14 +143,16 @@ PanelWindow {
             anchors.centerIn: parent
             spacing: 22
 
-            Text {
+            HeadingText {
                 anchors.horizontalCenter: parent.horizontalCenter
 
                 text: "Power Menu"
-                color: Theme.textStrong
-                font.family: Theme.fontFamily
                 font.pixelSize: 18
-                font.bold: true
+            }
+
+            Divider {
+                width: 420
+                lineOpacity: 0.55
             }
 
             Row {
@@ -98,78 +161,45 @@ PanelWindow {
 
                 PowerAction {
                     icon: ""
-                    text: "Lock"
+                    label: "Lock"
                     command: "loginctl lock-session"
+
+                    onTriggered: {
+                        root.closePowerMenu()
+                    }
                 }
 
                 PowerAction {
                     icon: "󰒲"
-                    text: "Suspend"
+                    label: "Suspend"
                     command: "systemctl suspend"
+
+                    onTriggered: {
+                        root.closePowerMenu()
+                    }
                 }
 
                 PowerAction {
                     icon: ""
-                    text: "Reboot"
+                    label: "Reboot"
                     command: "systemctl reboot"
+                    danger: true
+
+                    onTriggered: {
+                        root.closePowerMenu()
+                    }
                 }
 
                 PowerAction {
                     icon: ""
-                    text: "Shutdown"
+                    label: "Shutdown"
                     command: "systemctl poweroff"
+                    danger: true
+
+                    onTriggered: {
+                        root.closePowerMenu()
+                    }
                 }
-            }
-        }
-    }
-
-    component PowerAction: Rectangle {
-        id: action
-
-        property string icon: ""
-        property string text: ""
-        property string command: ""
-
-        width: 105
-        height: 130
-
-        radius: 24
-        color: Theme.pillBg
-
-        border.width: 1
-        border.color: Theme.border
-
-        Column {
-            anchors.centerIn: parent
-            spacing: 12
-
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-
-                text: action.icon
-                color: Theme.text
-                font.family: Theme.fontFamily
-                font.pixelSize: 28
-            }
-
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-
-                text: action.text
-                color: Theme.text
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                font.bold: true
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-
-            onClicked: {
-                ShellState.powerMenuOpen = false
-                Quickshell.execDetached(["bash", "-c", action.command])
             }
         }
     }

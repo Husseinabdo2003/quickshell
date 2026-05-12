@@ -1,18 +1,11 @@
 import QtQuick
 
 import "../components"
-import "../services"
 
-BarPill {
-    label: ""
-    strong: true
+BarActionPill {
+    icon: ""
+    command: "qs ipc call powerMenu toggle"
 
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-
-        onClicked: {
-            ShellState.powerMenuOpen = !ShellState.powerMenuOpen
-        }
-    }
+    actionWidth: 38
+    iconSize: 13
 }

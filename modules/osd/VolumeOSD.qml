@@ -3,7 +3,6 @@ import QtQuick
 import Quickshell.Io
 import Quickshell.Services.Pipewire
 
-import "../../theme"
 import "../../services"
 
 PanelWindow {
@@ -33,6 +32,9 @@ PanelWindow {
     property int volume: ready ? Math.round(sink.audio.volume * 100) : 0
     property bool muted: ready ? sink.audio.muted : false
 
+    readonly property int sliderMaximum: Math.round(root.maxVolume * 100)
+    readonly property int shownVolume: root.muted ? 0 : root.volume
+
     PwObjectTracker {
         objects: sink !== null ? [sink] : []
     }
@@ -46,14 +48,22 @@ PanelWindow {
 
         function raise(): void {
             if (root.ready) {
-                root.sink.audio.volume = Math.min(root.sink.audio.volume + 0.05, root.maxVolume)
+                root.sink.audio.volume = Math.min(
+                    root.sink.audio.volume + 0.05,
+                    root.maxVolume
+                )
+
                 root.show()
             }
         }
 
         function lower(): void {
             if (root.ready) {
-                root.sink.audio.volume = Math.max(root.sink.audio.volume - 0.05, 0)
+                root.sink.audio.volume = Math.max(
+                    root.sink.audio.volume - 0.05,
+                    0
+                )
+
                 root.show()
             }
         }
@@ -66,66 +76,15 @@ PanelWindow {
         }
     }
 
-    Rectangle {
+    OsdPanel {
         anchors.fill: parent
 
-        radius: 16
-        color: Theme.pillBg
-
-        border.width: 1
-        border.color: Theme.border
-
-        Row {
-            anchors.centerIn: parent
-            spacing: 9
-
-            Item {
-                width: 24
-                height: 24
-
-                Text {
-                    anchors.centerIn: parent
-
-                    text: root.muted ? "󰝟" : ""
-                    color: Theme.text
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 16
-                }
-            }
-
-            Rectangle {
-                width: 115
-                height: 5
-
-                anchors.verticalCenter: parent.verticalCenter
-
-                radius: 999
-                color: Theme.border
-
-                Rectangle {
-                    height: parent.height
-                    width: parent.width * Math.min(root.volume, root.maxVolume * 100) / (root.maxVolume * 100)
-
-                    radius: 999
-                    color: Theme.accent
-                }
-            }
-
-            Item {
-                width: 42
-                height: 24
-
-                Text {
-                    anchors.centerIn: parent
-
-                    text: root.muted ? "0%" : root.volume + "%"
-                    color: Theme.text
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    font.bold: true
-                }
-            }
-        }
+        icon: root.muted ? "󰝟" : ""
+        value: root.shownVolume
+        minimum: 0
+        maximum: root.sliderMaximum
+        valueText: root.shownVolume + "%"
+        muted: root.muted
     }
 
     Timer {
@@ -145,7 +104,9 @@ PanelWindow {
     }
 
     Connections {
-        target: Pipewire.defaultAudioSink !== null ? Pipewire.defaultAudioSink.audio : null
+        target: Pipewire.defaultAudioSink !== null
+            ? Pipewire.defaultAudioSink.audio
+            : null
 
         function onVolumeChanged() {
             root.show()

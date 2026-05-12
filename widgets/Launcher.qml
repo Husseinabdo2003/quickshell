@@ -1,17 +1,11 @@
-import Quickshell
 import QtQuick
 
 import "../components"
 
-BarPill {
-    label: "  Apps"
+BarActionPill {
+    icon: "󰣇"
+    command: "pgrep -x rofi >/dev/null && pkill -x rofi || rofi -show drun -show-icons"
 
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-
-        onClicked: {
-            Quickshell.execDetached(["bash", "-c", "rofi -show drun -show-icons"])
-        }
-    }
+    actionWidth: 38
+    iconSize: 14
 }

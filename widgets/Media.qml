@@ -2,9 +2,8 @@ import QtQuick
 import Quickshell.Services.Mpris
 
 import "../components"
-import "../theme"
 
-BarPill {
+BarMediaPill {
     id: root
 
     function bestPlayer() {
@@ -16,15 +15,26 @@ BarPill {
         for (let i = 0; i < players.length; i++) {
             const p = players[i]
 
-            if (p && p.isPlaying && p.trackTitle && String(p.trackTitle).length > 0)
+            if (
+                p
+                && p.isPlaying
+                && p.trackTitle
+                && String(p.trackTitle).length > 0
+            ) {
                 return p
+            }
         }
 
         for (let i = 0; i < players.length; i++) {
             const p = players[i]
 
-            if (p && p.trackTitle && String(p.trackTitle).length > 0)
+            if (
+                p
+                && p.trackTitle
+                && String(p.trackTitle).length > 0
+            ) {
                 return p
+            }
         }
 
         return players[0]
@@ -79,23 +89,18 @@ BarPill {
         return playerName
     }
 
-    property string clippedTrackText: trackText.length > 45
-        ? trackText.substring(0, 45) + "…"
-        : trackText
-
     visible: hasPlayer && trackText.length > 0
 
-    label: clippedTrackText
-    textColor: hasPlayer && !player.isPlaying ? Theme.textMuted : Theme.text
-    strong: false
+    icon: hasPlayer && player.isPlaying ? "" : ""
+    text: trackText
+    playing: hasPlayer && player.isPlaying
+    interactive: hasPlayer && player.canTogglePlaying
 
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
+    maxCharacters: 45
+    iconSize: 12
 
-        onClicked: {
-            if (root.hasPlayer && root.player.canTogglePlaying)
-                root.player.togglePlaying()
-        }
+    onClicked: {
+        if (root.hasPlayer && root.player.canTogglePlaying)
+            root.player.togglePlaying()
     }
 }

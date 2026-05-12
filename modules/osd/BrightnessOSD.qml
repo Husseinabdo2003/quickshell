@@ -2,7 +2,6 @@ import Quickshell
 import QtQuick
 import Quickshell.Io
 
-import "../../theme"
 import "../../services"
 
 PanelWindow {
@@ -31,11 +30,10 @@ PanelWindow {
         const value = Number(output.trim())
 
         if (!isNaN(value)) {
-            root.brightness = value
+            root.brightness = Math.max(0, Math.min(100, value))
 
-            if (shouldShow) {
+            if (shouldShow)
                 root.show()
-            }
         }
     }
 
@@ -47,15 +45,13 @@ PanelWindow {
         }
 
         function raise(): void {
-            if (!raiseBrightnessProcess.running) {
+            if (!raiseBrightnessProcess.running)
                 raiseBrightnessProcess.running = true
-            }
         }
 
         function lower(): void {
-            if (!lowerBrightnessProcess.running) {
+            if (!lowerBrightnessProcess.running)
                 lowerBrightnessProcess.running = true
-            }
         }
     }
 
@@ -107,66 +103,14 @@ PanelWindow {
         }
     }
 
-    Rectangle {
+    OsdPanel {
         anchors.fill: parent
 
-        radius: 16
-        color: Theme.pillBg
-
-        border.width: 1
-        border.color: Theme.border
-
-        Row {
-            anchors.centerIn: parent
-            spacing: 9
-
-            Item {
-                width: 24
-                height: 24
-
-                Text {
-                    anchors.centerIn: parent
-
-                    text: "󰃠"
-                    color: Theme.text
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 16
-                }
-            }
-
-            Rectangle {
-                width: 115
-                height: 5
-
-                anchors.verticalCenter: parent.verticalCenter
-
-                radius: 999
-                color: Theme.border
-
-                Rectangle {
-                    height: parent.height
-                    width: parent.width * Math.min(root.brightness, 100) / 100
-
-                    radius: 999
-                    color: Theme.accent
-                }
-            }
-
-            Item {
-                width: 42
-                height: 24
-
-                Text {
-                    anchors.centerIn: parent
-
-                    text: root.brightness + "%"
-                    color: Theme.text
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    font.bold: true
-                }
-            }
-        }
+        icon: "󰃠"
+        value: root.brightness
+        minimum: 0
+        maximum: 100
+        valueText: root.brightness + "%"
     }
 
     Timer {

@@ -4,7 +4,7 @@ import Quickshell.Services.Pipewire
 import "../components"
 import "../theme"
 
-BarPill {
+BarInfoPill {
     id: root
 
     property real maxVolume: 2.55
@@ -18,29 +18,42 @@ BarPill {
         objects: sink !== null ? [sink] : []
     }
 
-    label: !ready ? "  N/A"
-           : muted ? "󰝟  0%"
-           : "  " + volume + "%"
+    icon: !ready
+        ? ""
+        : muted
+            ? "󰝟"
+            : ""
+
+    value: !ready
+        ? "N/A"
+        : muted
+            ? "0%"
+            : volume + "%"
 
     strong: muted || volume >= 100
+    textColor: muted ? WalTheme.fgMuted : volume >= 100 ? WalTheme.accent : WalTheme.fg
 
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
+    interactive: ready
 
-        onClicked: {
-            if (ready)
-                sink.audio.muted = !sink.audio.muted
-        }
+    onClicked: {
+        if (ready)
+            sink.audio.muted = !sink.audio.muted
+    }
 
-        onWheel: function(wheel) {
-            if (!ready)
-                return
+    onWheelMoved: function(wheel) {
+        if (!ready)
+            return
 
-            if (wheel.angleDelta.y > 0)
-                sink.audio.volume = Math.min(sink.audio.volume + 0.05, root.maxVolume)
-            else
-                sink.audio.volume = Math.max(sink.audio.volume - 0.05, 0)
+        if (wheel.angleDelta.y > 0) {
+            sink.audio.volume = Math.min(
+                sink.audio.volume + 0.05,
+                root.maxVolume
+            )
+        } else {
+            sink.audio.volume = Math.max(
+                sink.audio.volume - 0.05,
+                0
+            )
         }
     }
 }

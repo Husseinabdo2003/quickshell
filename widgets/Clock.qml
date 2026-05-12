@@ -3,12 +3,12 @@ import QtQuick
 
 import "../components"
 
-BarPill {
+BarInfoPill {
     SystemClock {
         id: clock
         precision: SystemClock.Minutes
     }
 
-    label: Qt.formatDateTime(clock.date, "hh:mm AP")
+    value: Qt.formatDateTime(clock.date, "hh:mm AP")
     strong: true
 }

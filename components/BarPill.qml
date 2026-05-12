@@ -1,32 +1,58 @@
 import QtQuick
+
 import "../theme"
 
 Rectangle {
     id: root
 
-    property string label: "Pill"
+    property string label: ""
     property bool strong: false
-    property color textColor: strong ? Theme.textStrong : Theme.text
-    property int horizontalPadding: 24
-    property int minPillWidth: 0
+    property color textColor: strong ? WalTheme.fg : WalTheme.fgMuted
 
-    height: Theme.pillHeight
-    width: Math.max(textItem.implicitWidth + horizontalPadding, minPillWidth)
+    property int minPillWidth: 0
+    property int horizontalPadding: 12
+    property int pillHeight: Theme.pillHeight
+    property int fontSize: Theme.fontSize
+
+    property color pillColor: Theme.pillBg
+    property color pillBorderColor: WalTheme.border
+
+    default property alias content: contentHost.data
+
+    height: pillHeight
+
+    width: Math.max(
+        minPillWidth,
+        labelText.implicitWidth + horizontalPadding * 2
+    )
 
     radius: Theme.radius
-    color: Theme.pillBg
+    color: pillColor
 
     border.width: 1
-    border.color: Theme.border
+    border.color: pillBorderColor
+
+    clip: true
 
     Text {
-        id: textItem
+        id: labelText
+
         anchors.centerIn: parent
 
         text: root.label
         color: root.textColor
-        font.pixelSize: Theme.fontSize
-        font.bold: root.strong
+
         font.family: Theme.fontFamily
+        font.pixelSize: root.fontSize
+        font.bold: root.strong
+
+        elide: Text.ElideRight
+    }
+
+    Item {
+        id: contentHost
+
+        anchors.fill: parent
+        z: 10
     }
 }

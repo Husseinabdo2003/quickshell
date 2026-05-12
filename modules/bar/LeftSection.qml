@@ -4,9 +4,7 @@ import "../../theme"
 import "../../widgets"
 
 Row {
-    anchors.left: parent.left
-    anchors.verticalCenter: parent.verticalCenter
-    anchors.leftMargin: Theme.margin
+    id: root
 
     spacing: Theme.spacing
 

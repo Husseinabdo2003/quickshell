@@ -4,7 +4,7 @@ import Quickshell.Io
 import "../components"
 import "../theme"
 
-BarPill {
+BarInfoPill {
     id: root
 
     property int cpuUsage: 0
@@ -15,10 +15,11 @@ BarPill {
 
     minPillWidth: 72
 
-    label: ready ? "  " + cpuUsage + "%" : "  --%"
-    strong: ready && cpuUsage >= 70
+    icon: ""
+    value: ready ? cpuUsage + "%" : "--%"
 
-    textColor: ready && cpuUsage >= 85 ? Theme.accent : Theme.text
+    strong: ready && cpuUsage >= 70
+    textColor: ready && cpuUsage >= 85 ? WalTheme.urgent : WalTheme.fg
 
     Process {
         id: cpuProc
@@ -52,7 +53,14 @@ BarPill {
                     const idleDiff = idleAll - root.lastIdle
 
                     if (totalDiff > 0) {
-                        root.cpuUsage = Math.max(0, Math.min(100, Math.round((1 - idleDiff / totalDiff) * 100)))
+                        root.cpuUsage = Math.max(
+                            0,
+                            Math.min(
+                                100,
+                                Math.round((1 - idleDiff / totalDiff) * 100)
+                            )
+                        )
+
                         root.ready = true
                     }
                 }
@@ -68,8 +76,12 @@ BarPill {
         running: true
         repeat: true
 
-        onTriggered: cpuProc.exec(["sh", "-c", "head -n 1 /proc/stat"])
+        onTriggered: {
+            cpuProc.exec(["sh", "-c", "head -n 1 /proc/stat"])
+        }
     }
 
-    Component.onCompleted: cpuProc.exec(["sh", "-c", "head -n 1 /proc/stat"])
+    Component.onCompleted: {
+        cpuProc.exec(["sh", "-c", "head -n 1 /proc/stat"])
+    }
 }

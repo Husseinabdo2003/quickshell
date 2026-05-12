@@ -1,6 +1,5 @@
 import Quickshell
 import QtQuick
-import Quickshell.Io
 
 import "../../theme"
 import "../dashboard"
@@ -17,22 +16,31 @@ PanelWindow {
     implicitHeight: Theme.barHeight
     color: "transparent"
 
-    Rectangle {
+    Item {
         id: barRoot
 
         anchors.fill: parent
-        color: "transparent"
 
         LeftSection {
             id: leftSection
+
+            anchors.left: parent.left
+            anchors.leftMargin: Theme.margin
+            anchors.verticalCenter: parent.verticalCenter
         }
 
         CenterSection {
             id: centerSection
+
+            anchors.centerIn: parent
         }
 
         RightSection {
             id: rightSection
+
+            anchors.right: parent.right
+            anchors.rightMargin: Theme.margin
+            anchors.verticalCenter: parent.verticalCenter
         }
 
         Dashboard {

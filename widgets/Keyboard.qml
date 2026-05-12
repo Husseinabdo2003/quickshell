@@ -4,13 +4,15 @@ import Quickshell.Hyprland
 
 import "../components"
 
-BarPill {
+BarInfoPill {
     id: root
 
     property string layout: "EN"
 
-    label: layout
+    value: layout
     strong: true
+
+    interactive: true
 
     function parseLayout(text) {
         const keymap = text.trim().toLowerCase()
@@ -71,13 +73,8 @@ BarPill {
         root.refreshLayout()
     }
 
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-
-        onClicked: {
-            if (!switchLayoutProcess.running)
-                switchLayoutProcess.running = true
-        }
+    onClicked: {
+        if (!switchLayoutProcess.running)
+            switchLayoutProcess.running = true
     }
 }

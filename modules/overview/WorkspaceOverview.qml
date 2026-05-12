@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 
+import "../../components"
 import "../../theme"
 import "../../services"
 
@@ -26,14 +27,6 @@ Scope {
         exclusiveZone: 0
         focusable: true
 
-        /*
-            Repo-like shape:
-            - fixed compact panel
-            - 5 columns
-            - small gaps
-            - two preview rows
-            - thin special workspace separator
-        */
         property int columns: 5
 
         property int panelMaxWidth: 1508
@@ -47,29 +40,34 @@ Scope {
 
         property int panelRadius: 12
 
-        property int panelWidth: Math.min(panelMaxWidth, Math.round(overviewWindow.width * panelWidthRatio))
+        property int panelWidth: Math.min(
+            panelMaxWidth,
+            Math.round(overviewWindow.width * panelWidthRatio)
+        )
+
         property int contentWidth: panelWidth - backgroundPadding * 2
 
-        property int tileWidth: Math.floor((contentWidth - workspaceSpacing * (columns - 1)) / columns)
+        property int tileWidth: Math.floor(
+            (contentWidth - workspaceSpacing * (columns - 1)) / columns
+        )
+
         property int tileHeight: Math.round(tileWidth * 0.55)
 
         property int panelHeight: backgroundPadding * 2
-                                + tileHeight
-                                + workspaceSpacing
-                                + headerHeight
-                                + specialRowTopGap
-                                + tileHeight
+            + tileHeight
+            + workspaceSpacing
+            + headerHeight
+            + specialRowTopGap
+            + tileHeight
 
         function alpha(color, opacity) {
             return Qt.rgba(color.r, color.g, color.b, opacity)
         }
 
-        function darken(color, amount, opacity) {
-            return Qt.rgba(color.r * amount, color.g * amount, color.b * amount, opacity)
-        }
-
         function workspaceByName(name) {
-            return Hyprland.workspaces.values.find(ws => String(ws.name) === String(name)) || null
+            return Hyprland.workspaces.values.find(ws =>
+                String(ws.name) === String(name)
+            ) || null
         }
 
         function normalWorkspaceNames() {
@@ -114,15 +112,19 @@ Scope {
 
         Rectangle {
             anchors.fill: parent
+
             color: Qt.rgba(0, 0, 0, 0.34)
 
             MouseArea {
                 anchors.fill: parent
-                onClicked: ShellState.closeOverview()
+
+                onClicked: {
+                    ShellState.closeOverview()
+                }
             }
         }
 
-        Rectangle {
+        Card {
             id: panel
 
             width: overviewWindow.panelWidth
@@ -130,27 +132,23 @@ Scope {
 
             anchors.centerIn: parent
 
-            radius: overviewWindow.panelRadius
-            color: Qt.rgba(0.018, 0.055, 0.052, 0.88)
-
-            border.width: 1
-            border.color: overviewWindow.alpha(Theme.border, 0.86)
-
-            clip: true
+            cardRadius: overviewWindow.panelRadius
+            cardColor: Qt.rgba(0.018, 0.055, 0.052, 0.88)
+            cardBorderColor: overviewWindow.alpha(WalTheme.border, 0.86)
 
             opacity: ShellState.overviewOpen ? 1 : 0
             scale: ShellState.overviewOpen ? 1 : 0.975
 
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 130
+                    duration: Animations.popupFade
                     easing.type: Easing.OutCubic
                 }
             }
 
             Behavior on scale {
                 NumberAnimation {
-                    duration: 160
+                    duration: Animations.normal
                     easing.type: Easing.OutCubic
                 }
             }
@@ -163,6 +161,7 @@ Scope {
             Column {
                 anchors.fill: parent
                 anchors.margins: overviewWindow.backgroundPadding
+
                 spacing: overviewWindow.workspaceSpacing
 
                 Row {
@@ -179,25 +178,23 @@ Scope {
                             previewWidth: overviewWindow.tileWidth
                             previewHeight: overviewWindow.tileHeight
 
-                                workspaceName: String(modelData)
-                                displayName: overviewWindow.specialWorkspaceLabel(modelData)
-                                workspace: overviewWindow.workspaceByName(modelData)
-                                windows: overviewWindow.windowsForWorkspaceName(modelData)
-                            }
+                            workspaceName: String(modelData)
+                            displayName: overviewWindow.specialWorkspaceLabel(modelData)
+                            workspace: overviewWindow.workspaceByName(modelData)
+                            windows: overviewWindow.windowsForWorkspaceName(modelData)
+                        }
                     }
                 }
 
-                Rectangle {
+                Card {
                     width: overviewWindow.contentWidth
                     height: overviewWindow.headerHeight
 
-                    radius: 1
-                    color: Qt.rgba(0.03, 0.11, 0.10, 0.62)
+                    cardRadius: 3
+                    cardColor: Qt.rgba(0.03, 0.11, 0.10, 0.62)
+                    cardBorderColor: overviewWindow.alpha(WalTheme.border, 0.74)
 
-                    border.width: 1
-                    border.color: overviewWindow.alpha(Theme.border, 0.74)
-
-                    Text {
+                    TitleText {
                         anchors {
                             left: parent.left
                             leftMargin: 9
@@ -205,10 +202,7 @@ Scope {
                         }
 
                         text: "Special Workspaces"
-                        color: Theme.text
-                        font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize
-                        font.bold: true
                     }
                 }
 
@@ -239,11 +233,6 @@ Scope {
                     }
                 }
             }
-        }
-
-        Shortcut {
-            sequence: "Escape"
-            onActivated: ShellState.closeOverview()
         }
     }
 }

@@ -4,7 +4,7 @@ import Quickshell.Services.UPower
 import "../components"
 import "../theme"
 
-BarPill {
+BarInfoPill {
     id: root
 
     property var battery: UPower.displayDevice
@@ -16,19 +16,31 @@ BarPill {
     property bool critical: ready && percent <= 15
     property bool warning: ready && percent <= 30 && percent > 15
 
-    label: !ready ? "BAT N/A"
-           : charging ? "  " + percent + "%"
-           : full ? "  " + percent + "%"
-           : percent <= 15 ? "  " + percent + "%"
-           : percent <= 30 ? "  " + percent + "%"
-           : percent <= 55 ? "  " + percent + "%"
-           : percent <= 80 ? "  " + percent + "%"
-           : "  " + percent + "%"
+    icon: !ready
+        ? "BAT"
+        : charging
+            ? ""
+            : full
+                ? ""
+                : percent <= 15
+                    ? ""
+                    : percent <= 30
+                        ? ""
+                        : percent <= 55
+                            ? ""
+                            : percent <= 80
+                                ? ""
+                                : ""
 
-    textColor: charging || full ? "#b8e0c0"
-             : warning ? "#ffd166"
-             : critical ? Theme.accent
-             : Theme.text
+    value: ready ? percent + "%" : "N/A"
+
+    textColor: charging || full
+        ? "#b8e0c0"
+        : warning
+            ? "#ffd166"
+            : critical
+                ? WalTheme.urgent
+                : WalTheme.fg
 
     strong: charging || full || warning || critical
 }

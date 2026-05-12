@@ -9,8 +9,10 @@ QtObject {
     property bool volumeOsdOpen: false
     property bool brightnessOsdOpen: false
     property bool lockOsdOpen: false
+    property bool powerProfileOsdOpen: false
 
     property bool overviewOpen: false
+
 
     property string draggedWindowAddress: ""
     property string draggedWindowTitle: ""

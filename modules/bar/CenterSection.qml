@@ -4,12 +4,15 @@ import "../../theme"
 import "../../widgets"
 
 Row {
-    anchors.centerIn: parent
+    id: root
 
     spacing: Theme.spacing
 
     Clock {}
+
     MediaPrev {}
+
     Media {}
+
     MediaNext {}
 }
