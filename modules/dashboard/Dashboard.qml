@@ -13,9 +13,8 @@ PopupWindow {
     property var anchorWindow
     property var attachItem
 
-    property bool opened: false
-    property bool animating: false
     property bool addOpen: false
+    property bool windowAlive: false
 
     readonly property int panelWidth: 430
     readonly property int panelHeight: 610
@@ -23,17 +22,23 @@ PopupWindow {
     readonly property int gapFromBar: 6
     readonly property int leftMargin: Theme.margin
 
-    implicitWidth: anchorWindow ? anchorWindow.width : panelWidth
-    implicitHeight: panelHeight + 40
+    readonly property int openDuration: 240
+    readonly property int closeDuration: 220
 
-    visible: opened || animating
+    readonly property int openY: 0
+    readonly property int closedY: -panelHeight - 34
+
+    implicitWidth: anchorWindow ? anchorWindow.width : panelWidth
+    implicitHeight: panelHeight + 60
+
+    visible: root.windowAlive
     color: "transparent"
 
     anchor.window: anchorWindow
     anchor.rect.x: 0
     anchor.rect.y: Theme.barHeight + gapFromBar
     anchor.rect.width: anchorWindow ? anchorWindow.width : panelWidth
-    anchor.rect.height: panelHeight
+    anchor.rect.height: panelHeight + 60
 
     grabFocus: false
 
@@ -41,58 +46,10 @@ PopupWindow {
         id: focusGrab
 
         windows: [root]
-        active: root.opened
-    }
+        active: ShellState.dashboardOpen
 
-    function filteredItems() {
-        return dashboardState.filteredItems(DashboardData.items)
-    }
-
-    function centeredAddPopupX() {
-        return Math.round((root.implicitWidth - root.addPopupWidth) / 2)
-    }
-
-    function toggleDashboard() {
-        root.animating = true
-        root.opened = !root.opened
-        root.addOpen = false
-
-        DashboardData.load()
-
-        if (root.visible)
-            root.anchor.updateAnchor()
-
-        animationStopper.restart()
-    }
-
-    function openDashboard() {
-        root.animating = true
-        root.opened = true
-
-        DashboardData.load()
-
-        if (root.visible)
-            root.anchor.updateAnchor()
-
-        animationStopper.restart()
-    }
-
-    function closeDashboard() {
-        root.animating = true
-        root.opened = false
-        root.addOpen = false
-
-        animationStopper.restart()
-    }
-
-    Timer {
-        id: animationStopper
-
-        interval: Animations.slow
-        repeat: false
-
-        onTriggered: {
-            root.animating = false
+        onCleared: {
+            ShellState.closeDashboard()
         }
     }
 
@@ -104,24 +61,165 @@ PopupWindow {
         id: dashboardActions
     }
 
-    PopupPanel {
+    IpcHandler {
+        target: "dashboard"
+
+        function toggle(): void {
+            ShellState.toggleDashboard()
+        }
+
+        function open(): void {
+            ShellState.openDashboard()
+        }
+
+        function close(): void {
+            ShellState.closeDashboard()
+        }
+    }
+
+    Connections {
+        target: ShellState
+
+        function onDashboardOpenChanged() {
+            if (ShellState.dashboardOpen) {
+                root.openDashboardAnimation()
+            } else {
+                root.closeDashboardAnimation()
+            }
+        }
+    }
+
+    function openDashboardAnimation() {
+        closeHideTimer.stop()
+
+        root.windowAlive = true
+        root.addOpen = false
+
+        DashboardData.load()
+
+        if (root.visible)
+            root.anchor.updateAnchor()
+
+        panel.y = root.closedY
+        panel.opacity = 0.0
+        panel.scale = 0.985
+
+        slideAnimation.stop()
+        opacityAnimation.stop()
+        scaleAnimation.stop()
+
+        slideAnimation.duration = root.openDuration
+        slideAnimation.to = root.openY
+
+        opacityAnimation.duration = 120
+        opacityAnimation.to = 1.0
+
+        scaleAnimation.duration = root.openDuration
+        scaleAnimation.to = 1.0
+
+        slideAnimation.start()
+        opacityAnimation.start()
+        scaleAnimation.start()
+    }
+
+    function closeDashboardAnimation() {
+        root.addOpen = false
+
+        slideAnimation.stop()
+        opacityAnimation.stop()
+        scaleAnimation.stop()
+
+        slideAnimation.duration = root.closeDuration
+        slideAnimation.to = root.closedY
+
+        opacityAnimation.duration = root.closeDuration
+        opacityAnimation.to = 0.0
+
+        scaleAnimation.duration = root.closeDuration
+        scaleAnimation.to = 0.985
+
+        slideAnimation.start()
+        opacityAnimation.start()
+        scaleAnimation.start()
+
+        closeHideTimer.restart()
+    }
+
+    function filteredItems() {
+        return dashboardState.filteredItems(DashboardData.items)
+    }
+
+    function centeredAddPopupX() {
+        return Math.round((root.implicitWidth - root.addPopupWidth) / 2)
+    }
+
+    Timer {
+        id: closeHideTimer
+
+        interval: root.closeDuration + 40
+        repeat: false
+
+        onTriggered: {
+            if (!ShellState.dashboardOpen)
+                root.windowAlive = false
+        }
+    }
+
+    Card {
         id: panel
 
-        opened: root.opened
-
         x: root.leftMargin
+        y: root.closedY
 
         width: root.panelWidth
         height: root.panelHeight
 
-        openY: 0
-        closedY: -height - 24
+        cardRadius: 30
+        cardColor: Theme.pillBg
+        cardBorderColor: WalTheme.border
 
-        panelRadius: 30
-        animationDuration: Animations.panel
+        opacity: 0
+        scale: 0.985
 
-        panelColor: Theme.pillBg
-        panelBorderColor: WalTheme.border
+        enabled: ShellState.dashboardOpen
+
+        layer.enabled: true
+        layer.smooth: true
+
+        NumberAnimation {
+            id: slideAnimation
+
+            target: panel
+            property: "y"
+
+            duration: root.openDuration
+            easing.type: Easing.OutCubic
+        }
+
+        NumberAnimation {
+            id: opacityAnimation
+
+            target: panel
+            property: "opacity"
+
+            duration: 120
+            easing.type: Easing.OutCubic
+        }
+
+        NumberAnimation {
+            id: scaleAnimation
+
+            target: panel
+            property: "scale"
+
+            duration: root.openDuration
+            easing.type: Easing.OutCubic
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.NoButton
+        }
 
         Column {
             id: contentColumn
@@ -182,7 +280,7 @@ PopupWindow {
     DashboardAddPopup {
         id: addPopup
 
-        opened: root.addOpen
+        opened: root.addOpen && ShellState.dashboardOpen
 
         x: root.centeredAddPopupX()
 
@@ -205,22 +303,13 @@ PopupWindow {
             )
 
             root.addOpen = false
+            DashboardData.load()
         }
     }
 
-    IpcHandler {
-        target: "dashboard"
-
-        function toggle() {
-            root.toggleDashboard()
-        }
-
-        function open() {
-            root.openDashboard()
-        }
-
-        function close() {
-            root.closeDashboard()
-        }
+    Component.onCompleted: {
+        panel.y = root.closedY
+        panel.opacity = 0.0
+        panel.scale = 0.985
     }
 }

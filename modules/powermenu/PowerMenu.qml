@@ -10,7 +10,12 @@ import "../../theme"
 PanelWindow {
     id: root
 
-    property bool animating: false
+    property bool windowAlive: false
+
+    readonly property int panelWidth: 520
+    readonly property int panelHeight: 260
+    readonly property int openDuration: 210
+    readonly property int closeDuration: 160
 
     anchors {
         left: true
@@ -21,9 +26,10 @@ PanelWindow {
 
     exclusionMode: ExclusionMode.Ignore
     aboveWindows: true
-    color: "transparent"
+    focusable: true
 
-    visible: ShellState.powerMenuOpen || root.animating
+    color: "transparent"
+    visible: root.windowAlive
 
     HyprlandFocusGrab {
         id: focusGrab
@@ -32,7 +38,7 @@ PanelWindow {
         active: ShellState.powerMenuOpen
 
         onCleared: {
-            root.closePowerMenu()
+            ShellState.closePowerMenu()
         }
     }
 
@@ -40,99 +46,74 @@ PanelWindow {
         target: "powerMenu"
 
         function toggle(): void {
-            root.togglePowerMenu()
+            ShellState.togglePowerMenu()
         }
 
         function open(): void {
-            root.openPowerMenu()
+            ShellState.openPowerMenu()
         }
 
         function close(): void {
-            root.closePowerMenu()
+            ShellState.closePowerMenu()
+        }
+    }
+
+    Connections {
+        target: ShellState
+
+        function onPowerMenuOpenChanged() {
+            if (ShellState.powerMenuOpen) {
+                closeHideTimer.stop()
+                root.windowAlive = true
+            } else {
+                closeHideTimer.restart()
+            }
         }
     }
 
     Timer {
-        id: animationStopper
+        id: closeHideTimer
 
-        interval: Animations.panel
+        interval: root.closeDuration + 40
         repeat: false
 
         onTriggered: {
-            root.animating = false
+            if (!ShellState.powerMenuOpen)
+                root.windowAlive = false
         }
     }
 
-    function togglePowerMenu() {
-        if (ShellState.powerMenuOpen)
-            root.closePowerMenu()
-        else
-            root.openPowerMenu()
-    }
+    PopupBackdrop {
+        opened: ShellState.powerMenuOpen
+        dimOpacity: 0.34
+        animationDuration: ShellState.powerMenuOpen
+            ? root.openDuration
+            : root.closeDuration
 
-    function openPowerMenu() {
-        root.animating = true
-        ShellState.powerMenuOpen = true
-        animationStopper.restart()
-    }
-
-    function closePowerMenu() {
-        root.animating = true
-        ShellState.powerMenuOpen = false
-        animationStopper.restart()
-    }
-
-    Rectangle {
-        anchors.fill: parent
-
-        enabled: ShellState.powerMenuOpen
-
-        color: Qt.rgba(0, 0, 0, ShellState.powerMenuOpen ? 0.30 : 0)
-
-        Behavior on color {
-            ColorAnimation {
-                duration: Animations.popupFade
-                easing.type: Easing.OutCubic
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-
-            onClicked: {
-                root.closePowerMenu()
-            }
+        onClicked: {
+            ShellState.closePowerMenu()
         }
     }
 
-    Card {
+    AnimatedPopupCard {
         id: panel
 
-        width: 520
-        height: 260
+        width: root.panelWidth
+        height: root.panelHeight
 
         anchors.centerIn: parent
 
-        cardRadius: 28
-        cardColor: Theme.pillBg
-        cardBorderColor: WalTheme.border
+        opened: ShellState.powerMenuOpen
 
-        opacity: ShellState.powerMenuOpen ? 1 : 0
-        scale: ShellState.powerMenuOpen ? 1 : 0.92
+        openedScale: 1.0
+        closedScale: 0.92
 
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Animations.popupFade
-                easing.type: Easing.OutCubic
-            }
-        }
+        openDuration: root.openDuration
+        closeDuration: root.closeDuration
 
-        Behavior on scale {
-            NumberAnimation {
-                duration: Animations.popupFade
-                easing.type: Easing.OutCubic
-            }
-        }
+        popupRadius: 30
+        popupColor: Theme.pillBg
+        popupBorderColor: WalTheme.border
 
         MouseArea {
             anchors.fill: parent
@@ -141,13 +122,25 @@ PanelWindow {
 
         Column {
             anchors.centerIn: parent
-            spacing: 22
+            spacing: 18
 
-            HeadingText {
+            Column {
                 anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 5
 
-                text: "Power Menu"
-                font.pixelSize: 18
+                HeadingText {
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    text: "Power Menu"
+                    font.pixelSize: 18
+                }
+
+                MetaText {
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    text: "Choose a session action"
+                    font.pixelSize: 11
+                }
             }
 
             Divider {
@@ -165,7 +158,7 @@ PanelWindow {
                     command: "loginctl lock-session"
 
                     onTriggered: {
-                        root.closePowerMenu()
+                        ShellState.closePowerMenu()
                     }
                 }
 
@@ -175,7 +168,7 @@ PanelWindow {
                     command: "systemctl suspend"
 
                     onTriggered: {
-                        root.closePowerMenu()
+                        ShellState.closePowerMenu()
                     }
                 }
 
@@ -183,10 +176,9 @@ PanelWindow {
                     icon: ""
                     label: "Reboot"
                     command: "systemctl reboot"
-                    danger: true
 
                     onTriggered: {
-                        root.closePowerMenu()
+                        ShellState.closePowerMenu()
                     }
                 }
 
@@ -194,10 +186,9 @@ PanelWindow {
                     icon: ""
                     label: "Shutdown"
                     command: "systemctl poweroff"
-                    danger: true
 
                     onTriggered: {
-                        root.closePowerMenu()
+                        ShellState.closePowerMenu()
                     }
                 }
             }

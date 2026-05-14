@@ -60,6 +60,13 @@ Card {
         return null
     }
 
+    readonly property bool canScreencopy: root.hasWindow
+        && ShellState.overviewOpen
+        && root.captureHandle !== null
+        && root.captureHandle !== undefined
+        && root.width > 2
+        && root.height > 2
+
     cardRadius: 3
     cardColor: Qt.rgba(0, 0, 0, 0.30)
 
@@ -104,23 +111,26 @@ Card {
         anchors.margins: 1
 
         captureSource: root.captureHandle
-        live: root.hasWindow && ShellState.overviewOpen
+        live: root.canScreencopy
         paintCursor: false
-        visible: root.hasWindow && thumbnail.hasContent
-        constraintSize: Qt.size(root.width, root.height)
+        visible: root.canScreencopy && thumbnail.hasContent
+        constraintSize: Qt.size(
+            Math.max(1, Math.round(root.width)),
+            Math.max(1, Math.round(root.height))
+        )
     }
 
     Card {
         anchors.fill: parent
 
-        visible: !root.hasWindow || !thumbnail.hasContent
+        visible: !root.canScreencopy || !thumbnail.hasContent
 
         cardRadius: root.cardRadius
         cardColor: Qt.rgba(0, 0, 0, 0.22)
         cardBorderWidth: 0
 
         Card {
-            width: Math.min(parent.width, parent.height) * 0.42
+            width: Math.max(24, Math.min(parent.width, parent.height) * 0.42)
             height: width
 
             anchors.centerIn: parent
@@ -137,7 +147,7 @@ Card {
                     : "W"
 
                 font.pixelSize: Math.max(
-                    28,
+                    18,
                     Math.min(parent.width, parent.height) * 0.28
                 )
             }
@@ -240,8 +250,6 @@ Card {
                     root.x = 0
                     root.y = 0
                     return
-                } else if (root.window.workspace) {
-                    Hyprland.dispatch("workspace " + root.window.workspace.name)
                 }
 
                 Hyprland.dispatch(
@@ -250,16 +258,13 @@ Card {
                 )
 
                 ShellState.closeOverview()
-            } else {
-                ShellState.requestDragRelease()
+                root.x = 0
+                root.y = 0
+                return
             }
 
-            root.x = 0
-            root.y = 0
-        }
+            ShellState.requestDragRelease()
 
-        onCanceled: {
-            ShellState.clearDraggedWindow()
             root.x = 0
             root.y = 0
         }

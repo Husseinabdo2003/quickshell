@@ -1,4 +1,5 @@
 //@ pragma UseQApplication
+//@ pragma IconTheme Yaru
 
 import Quickshell
 import Quickshell.Io
@@ -12,6 +13,8 @@ import "modules/osd"
 import "modules/notifications"
 import "modules/wallpaperPicker"
 import "modules/overview"
+import "modules/launcher"
+import "modules/clipboard"
 
 ShellRoot {
     id: root
@@ -32,8 +35,7 @@ ShellRoot {
         }
 
         function showPowerProfileOsd(): void {
-            ShellState.powerProfileOsdOpen = false
-            ShellState.powerProfileOsdOpen = true
+            ShellState.showPowerProfileOsd()
         }
     }
 
@@ -70,5 +72,10 @@ ShellRoot {
     NotificationCenter {}
     WallpaperPicker {}
 
+
+    AppLauncher {}
+    ClipboardPicker {}
+
     WorkspaceOverview {}
+
 }

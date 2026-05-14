@@ -10,7 +10,14 @@ import "../../components"
 PanelWindow {
     id: root
 
-    property bool animating: false
+    property bool windowAlive: false
+
+    readonly property int panelWidth: 372
+    readonly property int openDuration: 220
+    readonly property int closeDuration: 200
+
+    readonly property int openX: 0
+    readonly property int closedX: panelWidth + 32
 
     anchors {
         top: true
@@ -26,10 +33,12 @@ PanelWindow {
 
     exclusionMode: ExclusionMode.Ignore
     aboveWindows: true
+    focusable: true
 
-    implicitWidth: 372
+    implicitWidth: root.panelWidth
     color: "transparent"
-    visible: ShellState.notificationCenterOpen || root.animating
+
+    visible: root.windowAlive
 
     HyprlandFocusGrab {
         id: focusGrab
@@ -38,7 +47,7 @@ PanelWindow {
         active: ShellState.notificationCenterOpen
 
         onCleared: {
-            root.closeCenter()
+            ShellState.closeNotificationCenter()
         }
     }
 
@@ -46,15 +55,15 @@ PanelWindow {
         target: "notificationCenter"
 
         function toggle(): void {
-            root.toggleCenter()
+            ShellState.toggleNotificationCenter()
         }
 
         function open(): void {
-            root.openCenter()
+            ShellState.openNotificationCenter()
         }
 
         function close(): void {
-            root.closeCenter()
+            ShellState.closeNotificationCenter()
         }
 
         function clear(): void {
@@ -62,60 +71,134 @@ PanelWindow {
         }
     }
 
-    Timer {
-        id: animationStopper
+    Connections {
+        target: ShellState
 
-        interval: Animations.panel
-        repeat: false
-
-        onTriggered: {
-            root.animating = false
+        function onNotificationCenterOpenChanged() {
+            if (ShellState.notificationCenterOpen)
+                root.openCenterAnimation()
+            else
+                root.closeCenterAnimation()
         }
     }
 
-    function toggleCenter() {
-        if (ShellState.notificationCenterOpen)
-            root.closeCenter()
-        else
-            root.openCenter()
-    }
+    function openCenterAnimation() {
+        closeHideTimer.stop()
 
-    function openCenter() {
-        root.animating = true
-        ShellState.notificationCenterOpen = true
+        root.windowAlive = true
+
         NotificationService.rebuildGroups()
-        animationStopper.restart()
+
+        panel.x = root.closedX
+        panel.opacity = 0.0
+        panel.scale = 0.985
+
+        slideAnimation.stop()
+        opacityAnimation.stop()
+        scaleAnimation.stop()
+
+        slideAnimation.duration = root.openDuration
+        slideAnimation.to = root.openX
+
+        opacityAnimation.duration = 120
+        opacityAnimation.to = 1.0
+
+        scaleAnimation.duration = root.openDuration
+        scaleAnimation.to = 1.0
+
+        slideAnimation.start()
+        opacityAnimation.start()
+        scaleAnimation.start()
     }
 
-    function closeCenter() {
-        root.animating = true
-        ShellState.notificationCenterOpen = false
-        animationStopper.restart()
+    function closeCenterAnimation() {
+        slideAnimation.stop()
+        opacityAnimation.stop()
+        scaleAnimation.stop()
+
+        slideAnimation.duration = root.closeDuration
+        slideAnimation.to = root.closedX
+
+        opacityAnimation.duration = root.closeDuration
+        opacityAnimation.to = 0.0
+
+        scaleAnimation.duration = root.closeDuration
+        scaleAnimation.to = 0.985
+
+        slideAnimation.start()
+        opacityAnimation.start()
+        scaleAnimation.start()
+
+        closeHideTimer.restart()
+    }
+
+    Timer {
+        id: closeHideTimer
+
+        interval: root.closeDuration + 40
+        repeat: false
+
+        onTriggered: {
+            if (!ShellState.notificationCenterOpen)
+                root.windowAlive = false
+        }
     }
 
     Card {
-        anchors.fill: parent
+        id: panel
+
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+
+        width: root.panelWidth
+
+        x: root.closedX
+        opacity: 0.0
+        scale: 0.985
+
+        enabled: ShellState.notificationCenterOpen
 
         cardRadius: 30
         cardColor: Theme.pillBg
         cardBorderColor: WalTheme.border
         cardBorderWidth: 1
 
-        opacity: ShellState.notificationCenterOpen ? 1 : 0
-        x: ShellState.notificationCenterOpen ? 0 : width + 32
+        layer.enabled: true
+        layer.smooth: true
 
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Animations.popupFade
-                easing.type: Easing.OutCubic
-            }
+        NumberAnimation {
+            id: slideAnimation
+
+            target: panel
+            property: "x"
+
+            duration: root.openDuration
+            easing.type: Easing.OutCubic
         }
 
-        Behavior on x {
-            NumberAnimation {
-                duration: Animations.panel
-                easing.type: Easing.OutCubic
-            }
+        NumberAnimation {
+            id: opacityAnimation
+
+            target: panel
+            property: "opacity"
+
+            duration: 120
+            easing.type: Easing.OutCubic
+        }
+
+        NumberAnimation {
+            id: scaleAnimation
+
+            target: panel
+            property: "scale"
+
+            duration: root.openDuration
+            easing.type: Easing.OutCubic
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.NoButton
         }
 
         Column {
@@ -182,6 +265,7 @@ PanelWindow {
                 contentHeight: groupsColumn.implicitHeight
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
+                flickableDirection: Flickable.VerticalFlick
 
                 Column {
                     id: groupsColumn
@@ -216,5 +300,11 @@ PanelWindow {
                 }
             }
         }
+    }
+
+    Component.onCompleted: {
+        panel.x = root.closedX
+        panel.opacity = 0.0
+        panel.scale = 0.985
     }
 }

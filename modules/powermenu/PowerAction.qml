@@ -2,7 +2,6 @@ import QtQuick
 import Quickshell
 
 import "../../components"
-import "../../services"
 import "../../theme"
 
 Card {
@@ -11,63 +10,81 @@ Card {
     property string icon: ""
     property string label: ""
     property string command: ""
-    property bool danger: false
 
     signal triggered()
 
     width: 105
-    height: 130
+    height: 124
 
     cardRadius: 24
+    cardColor: Theme.pillBg
 
-    cardColor: mouseArea.containsMouse
-        ? WalTheme.surfaceAlpha
-        : Theme.pillBg
-
+    cardBorderWidth: 1
     cardBorderColor: mouseArea.containsMouse
         ? WalTheme.accent
         : WalTheme.border
 
-    cardBorderWidth: 1
-
     scale: mouseArea.pressed ? 0.97 : 1.0
-
-    Behavior on cardColor {
-        ColorAnimation {
-            duration: 120
-            easing.type: Easing.OutCubic
-        }
-    }
 
     Behavior on cardBorderColor {
         ColorAnimation {
-            duration: 120
+            duration: Animations.fast
             easing.type: Easing.OutCubic
         }
     }
 
     Behavior on scale {
         NumberAnimation {
-            duration: 80
+            duration: Animations.fast
             easing.type: Easing.OutCubic
         }
     }
 
     Column {
         anchors.centerIn: parent
-        spacing: 12
+        spacing: 10
 
-        Text {
+        Card {
+            width: 44
+            height: 44
+
             anchors.horizontalCenter: parent.horizontalCenter
 
-            text: root.icon
+            cardRadius: 17
 
-            color: mouseArea.containsMouse
+            cardColor: mouseArea.containsMouse
+                ? WalTheme.accentAlpha
+                : WalTheme.surfaceAlpha
+
+            cardBorderWidth: 1
+            cardBorderColor: mouseArea.containsMouse
                 ? WalTheme.accent
-                : WalTheme.fg
+                : WalTheme.border
 
-            font.family: Theme.fontFamily
-            font.pixelSize: 28
+            Behavior on cardColor {
+                ColorAnimation {
+                    duration: Animations.fast
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            Behavior on cardBorderColor {
+                ColorAnimation {
+                    duration: Animations.fast
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            Text {
+                anchors.centerIn: parent
+
+                text: root.icon
+                color: WalTheme.fg
+
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: 21
+                font.bold: true
+            }
         }
 
         TitleText {
@@ -75,9 +92,7 @@ Card {
 
             text: root.label
             font.pixelSize: Theme.fontSize
-
-            accent: mouseArea.containsMouse
-            danger: false
+            color: WalTheme.fg
         }
     }
 
@@ -92,7 +107,7 @@ Card {
             root.triggered()
 
             if (root.command.length > 0)
-                Quickshell.execDetached(["bash", "-c", root.command])
+                Quickshell.execDetached(["bash", "-lc", root.command])
         }
     }
 }

@@ -47,7 +47,7 @@ PanelWindow {
             id: dashboard
 
             anchorWindow: barWindow
-            attachItem: centerSection
+            attachItem: leftSection
         }
     }
 }

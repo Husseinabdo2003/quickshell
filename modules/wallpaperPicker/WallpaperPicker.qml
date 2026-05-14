@@ -5,12 +5,12 @@ import Quickshell.Hyprland
 
 import "../../components"
 import "../../theme"
+import "../../services"
 
 PanelWindow {
     id: root
 
     property bool pickerVisible: false
-    property bool pickerOpen: false
 
     property string selectedPath: ""
     property string selectedName: ""
@@ -19,7 +19,7 @@ PanelWindow {
 
     property string searchText: ""
 
-    visible: pickerVisible
+    visible: root.pickerVisible
 
     anchors {
         top: true
@@ -34,7 +34,7 @@ PanelWindow {
         id: focusGrab
 
         windows: [root]
-        active: root.pickerOpen
+        active: ShellState.wallpaperPickerOpen
 
         onCleared: {
             root.closePicker()
@@ -44,23 +44,31 @@ PanelWindow {
     IpcHandler {
         target: "wallpaperPicker"
 
-        function toggle() {
-            if (root.pickerOpen)
-                root.closePicker()
-            else
-                root.openPicker()
+        function toggle(): void {
+            ShellState.toggleWallpaperPicker()
         }
 
-        function open() {
-            root.openPicker()
+        function open(): void {
+            ShellState.openWallpaperPicker()
         }
 
-        function close() {
-            root.closePicker()
+        function close(): void {
+            ShellState.closeWallpaperPicker()
         }
 
-        function restore() {
+        function restore(): void {
             wallpaperActions.restoreWallpaper()
+        }
+    }
+
+    Connections {
+        target: ShellState
+
+        function onWallpaperPickerOpenChanged() {
+            if (ShellState.wallpaperPickerOpen)
+                root.openPickerAnimation()
+            else
+                root.closePickerAnimation()
         }
     }
 
@@ -71,7 +79,7 @@ PanelWindow {
         repeat: false
 
         onTriggered: {
-            if (!root.pickerOpen)
+            if (!ShellState.wallpaperPickerOpen)
                 root.pickerVisible = false
         }
     }
@@ -114,11 +122,10 @@ PanelWindow {
         }
     }
 
-    function openPicker() {
+    function openPickerAnimation() {
         closeTimer.stop()
 
         root.pickerVisible = true
-        root.pickerOpen = true
         root.searchText = ""
 
         root.reloadWallpapers()
@@ -127,9 +134,16 @@ PanelWindow {
         focusTimer.restart()
     }
 
-    function closePicker() {
-        root.pickerOpen = false
+    function closePickerAnimation() {
         closeTimer.restart()
+    }
+
+    function openPicker() {
+        ShellState.openWallpaperPicker()
+    }
+
+    function closePicker() {
+        ShellState.closeWallpaperPicker()
     }
 
     function reloadWallpapers() {
@@ -163,24 +177,13 @@ PanelWindow {
         id: wallpapersModel
     }
 
-    Rectangle {
-        anchors.fill: parent
+    PopupBackdrop {
+        opened: ShellState.wallpaperPickerOpen
+        dimOpacity: 0.48
+        animationDuration: Animations.popupFade
 
-        color: Qt.rgba(0, 0, 0, root.pickerOpen ? 0.48 : 0)
-
-        Behavior on color {
-            ColorAnimation {
-                duration: Animations.popupFade
-                easing.type: Easing.OutCubic
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-
-            onClicked: {
-                root.closePicker()
-            }
+        onClicked: {
+            root.closePicker()
         }
     }
 
@@ -199,7 +202,7 @@ PanelWindow {
         cardBorderColor: WalTheme.border
 
         transform: Translate {
-            y: root.pickerOpen ? 0 : panel.height + 40
+            y: ShellState.wallpaperPickerOpen ? 0 : panel.height + 40
 
             Behavior on y {
                 NumberAnimation {

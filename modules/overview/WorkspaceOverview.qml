@@ -11,10 +11,37 @@ import "../../services"
 Scope {
     id: root
 
+    property bool windowAlive: false
+
+    Timer {
+        id: closeHideTimer
+
+        interval: Animations.normal + 60
+        repeat: false
+
+        onTriggered: {
+            if (!ShellState.overviewOpen)
+                root.windowAlive = false
+        }
+    }
+
+    Connections {
+        target: ShellState
+
+        function onOverviewOpenChanged() {
+            if (ShellState.overviewOpen) {
+                closeHideTimer.stop()
+                root.windowAlive = true
+            } else {
+                closeHideTimer.restart()
+            }
+        }
+    }
+
     PanelWindow {
         id: overviewWindow
 
-        visible: ShellState.overviewOpen
+        visible: root.windowAlive
 
         anchors {
             top: true
@@ -59,6 +86,17 @@ Scope {
             + headerHeight
             + specialRowTopGap
             + tileHeight
+
+        HyprlandFocusGrab {
+            id: focusGrab
+
+            windows: [overviewWindow]
+            active: ShellState.overviewOpen
+
+            onCleared: {
+                ShellState.closeOverview()
+            }
+        }
 
         function alpha(color, opacity) {
             return Qt.rgba(color.r, color.g, color.b, opacity)
@@ -110,17 +148,13 @@ Scope {
             )
         }
 
-        Rectangle {
-            anchors.fill: parent
+        PopupBackdrop {
+            opened: ShellState.overviewOpen
+            dimOpacity: 0.34
+            animationDuration: Animations.popupFade
 
-            color: Qt.rgba(0, 0, 0, 0.34)
-
-            MouseArea {
-                anchors.fill: parent
-
-                onClicked: {
-                    ShellState.closeOverview()
-                }
+            onClicked: {
+                ShellState.closeOverview()
             }
         }
 
