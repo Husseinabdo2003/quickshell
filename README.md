@@ -1,4 +1,4 @@
-# Hussein Hyprland + Quickshell Setup
+# Hyprland + Quickshell Setup
 
 A custom Wayland desktop setup built around **Hyprland**, **Quickshell**, **Lua-generated Hyprland configs**, **Pywal theming**, and a fully custom popup/launcher/dashboard system.
 
