@@ -49,7 +49,8 @@ PopupWindow {
         active: ShellState.dashboardOpen
 
         onCleared: {
-            ShellState.closeDashboard()
+            if (ShellState.dashboardOpen)
+                ShellState.closeDashboard()
         }
     }
 
@@ -59,6 +60,22 @@ PopupWindow {
 
     DashboardActions {
         id: dashboardActions
+
+        onAddFinished: {
+            addPopup.clearAfterAdd()
+            root.addOpen = false
+        }
+
+        onRemoveFinished: {
+        }
+
+        onAddFailed: function(exitCode) {
+            console.log("Dashboard add failed:", exitCode)
+        }
+
+        onRemoveFailed: function(exitCode) {
+            console.log("Dashboard remove failed:", exitCode)
+        }
     }
 
     IpcHandler {
@@ -75,17 +92,29 @@ PopupWindow {
         function close(): void {
             ShellState.closeDashboard()
         }
+
+        function reload(): void {
+            DashboardData.load()
+        }
     }
 
     Connections {
         target: ShellState
 
         function onDashboardOpenChanged() {
-            if (ShellState.dashboardOpen) {
+            if (ShellState.dashboardOpen)
                 root.openDashboardAnimation()
-            } else {
+            else
                 root.closeDashboardAnimation()
-            }
+        }
+    }
+
+    function safeUpdateAnchor() {
+        try {
+            if (root.visible && root.anchor && root.anchor.updateAnchor)
+                root.anchor.updateAnchor()
+        } catch (error) {
+            console.log("Dashboard anchor update failed:", error)
         }
     }
 
@@ -96,9 +125,7 @@ PopupWindow {
         root.addOpen = false
 
         DashboardData.load()
-
-        if (root.visible)
-            root.anchor.updateAnchor()
+        root.safeUpdateAnchor()
 
         panel.y = root.closedY
         panel.opacity = 0.0
@@ -150,7 +177,10 @@ PopupWindow {
     }
 
     function centeredAddPopupX() {
-        return Math.round((root.implicitWidth - root.addPopupWidth) / 2)
+        return Math.max(
+            0,
+            Math.round((root.implicitWidth - root.addPopupWidth) / 2)
+        )
     }
 
     Timer {
@@ -226,18 +256,24 @@ PopupWindow {
 
             anchors.fill: parent
             anchors.margins: 20
-
             spacing: 14
 
             DashboardHeader {
                 width: parent.width
                 addOpen: root.addOpen
+                busy: dashboardActions.busy
 
                 onAddClicked: {
+                    if (dashboardActions.busy)
+                        return
+
                     root.addOpen = !root.addOpen
 
-                    if (root.addOpen)
-                        addPopup.focusTitle()
+                    if (root.addOpen) {
+                        Qt.callLater(function() {
+                            addPopup.focusTitle()
+                        })
+                    }
                 }
             }
 
@@ -248,6 +284,7 @@ PopupWindow {
             DashboardTabs {
                 width: parent.width
                 activeCategory: dashboardState.activeCategory
+                enabled: !dashboardActions.busy
 
                 onCategorySelected: function(category) {
                     dashboardState.activeCategory = category
@@ -265,10 +302,11 @@ PopupWindow {
                 id: dashboardList
 
                 width: parent.width
-                height: parent.height - 146
+                height: Math.max(0, parent.height - 146)
 
                 activeCategory: dashboardState.activeCategory
                 items: root.filteredItems()
+                busy: dashboardActions.busy
 
                 onRemoveRequested: function(itemId) {
                     dashboardActions.removeItem(itemId)
@@ -286,9 +324,11 @@ PopupWindow {
 
         activeCategory: dashboardState.addCategory
         defaultType: dashboardState.defaultType
+        busy: dashboardActions.busy
 
         onCancelRequested: {
-            root.addOpen = false
+            if (!dashboardActions.busy)
+                root.addOpen = false
         }
 
         onAddRequested: function(type, title, course, date, priority, status) {
@@ -301,9 +341,6 @@ PopupWindow {
                 priority,
                 status
             )
-
-            root.addOpen = false
-            DashboardData.load()
         }
     }
 

@@ -25,34 +25,50 @@ Card {
 
     signal closeRequested(var notification)
 
-    function notificationAppName() {
+    function safeValue(key) {
         if (!root.notification)
-            return "Notification"
+            return ""
 
-        if (root.notification.appName && String(root.notification.appName).length > 0)
-            return String(root.notification.appName)
+        try {
+            const value = root.notification[key]
+
+            if (value === null || value === undefined)
+                return ""
+
+            return String(value).trim()
+        } catch (error) {
+            return ""
+        }
+    }
+
+    function notificationAppName() {
+        const appName = root.safeValue("appName")
+
+        if (appName.length > 0)
+            return appName
 
         return "Notification"
     }
 
     function notificationSummary() {
-        if (!root.notification)
-            return ""
-
-        if (root.notification.summary && String(root.notification.summary).length > 0)
-            return String(root.notification.summary)
-
-        return ""
+        return root.safeValue("summary")
     }
 
     function notificationBody() {
-        if (!root.notification)
-            return ""
+        return root.safeValue("body")
+    }
 
-        if (root.notification.body && String(root.notification.body).length > 0)
-            return String(root.notification.body)
+    function notificationInitial() {
+        try {
+            return NotificationService.appInitialFor(root.notification)
+        } catch (error) {
+            const appName = root.notificationAppName()
 
-        return ""
+            if (appName.length > 0)
+                return appName[0].toUpperCase()
+
+            return "N"
+        }
     }
 
     function formattedTime() {
@@ -61,12 +77,16 @@ Card {
 
         let value = null
 
-        if (root.notification.time !== undefined && root.notification.time !== null)
-            value = root.notification.time
-        else if (root.notification.timestamp !== undefined && root.notification.timestamp !== null)
-            value = root.notification.timestamp
-        else if (root.notification.date !== undefined && root.notification.date !== null)
-            value = root.notification.date
+        try {
+            if (root.notification.time !== undefined && root.notification.time !== null)
+                value = root.notification.time
+            else if (root.notification.timestamp !== undefined && root.notification.timestamp !== null)
+                value = root.notification.timestamp
+            else if (root.notification.date !== undefined && root.notification.date !== null)
+                value = root.notification.date
+        } catch (error) {
+            value = null
+        }
 
         if (value === null)
             return ""
@@ -101,11 +121,33 @@ Card {
         return source
     }
 
+    function safeIconPath(icon) {
+        if (!icon || String(icon).trim().length === 0)
+            return ""
+
+        try {
+            const resolved = Quickshell.iconPath(String(icon), true)
+
+            if (resolved && String(resolved).length > 0)
+                return String(resolved)
+        } catch (error) {
+            return ""
+        }
+
+        return ""
+    }
+
     function resolveIconSource() {
         if (!root.notification)
             return ""
 
-        const candidates = NotificationService.iconCandidatesFor(root.notification)
+        let candidates = []
+
+        try {
+            candidates = NotificationService.iconCandidatesFor(root.notification)
+        } catch (error) {
+            candidates = []
+        }
 
         for (let i = 0; i < candidates.length; i++) {
             const candidate = String(candidates[i] || "").trim()
@@ -116,9 +158,9 @@ Card {
             if (root.isDirectImageSource(candidate))
                 return root.directImageSource(candidate)
 
-            const resolved = Quickshell.iconPath(candidate, true)
+            const resolved = root.safeIconPath(candidate)
 
-            if (resolved && String(resolved).length > 0)
+            if (resolved.length > 0)
                 return resolved
         }
 
@@ -161,7 +203,7 @@ Card {
             IconImage {
                 id: appIcon
 
-                visible: root.hasResolvedIcon
+                visible: root.hasResolvedIcon && status !== Image.Error
 
                 anchors.centerIn: parent
 
@@ -174,14 +216,14 @@ Card {
             }
 
             Text {
-                visible: !root.hasResolvedIcon
+                visible: !root.hasResolvedIcon || appIcon.status === Image.Error
 
                 anchors.centerIn: parent
 
-                text: NotificationService.appInitialFor(root.notification)
+                text: root.notificationInitial()
 
                 color: WalTheme.fg
-                font.family: Theme.fontFamily
+                font.family: "JetBrainsMono Nerd Font"
                 font.pixelSize: 14
                 font.bold: true
             }
@@ -190,9 +232,12 @@ Card {
         Column {
             id: contentColumn
 
-            width: parent.width
-                - (root.showAppIcon ? appIconBox.width + parent.spacing : 0)
-                - (rightColumn.visible ? rightColumn.width + parent.spacing : 0)
+            width: Math.max(
+                0,
+                parent.width
+                    - (root.showAppIcon ? appIconBox.width + parent.spacing : 0)
+                    - (rightColumn.visible ? rightColumn.width + parent.spacing : 0)
+            )
 
             anchors.verticalCenter: parent.verticalCenter
             spacing: compact ? 2 : 5
@@ -207,6 +252,7 @@ Card {
                 accentText: true
                 font.pixelSize: 11
                 opacity: 0.92
+                elide: Text.ElideRight
             }
 
             TitleText {
@@ -217,6 +263,7 @@ Card {
                     : root.notificationBody()
 
                 font.pixelSize: compact ? 12 : 13
+                elide: Text.ElideRight
             }
 
             MetaText {
@@ -231,6 +278,7 @@ Card {
                 wrapMode: Text.WordWrap
                 maximumLineCount: root.expanded ? 4 : 2
                 opacity: 0.90
+                elide: Text.ElideRight
             }
         }
 

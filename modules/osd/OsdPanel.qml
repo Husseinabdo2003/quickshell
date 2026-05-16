@@ -13,6 +13,13 @@ Card {
     property real maximum: 100
     property bool muted: false
 
+    readonly property real safeMinimum: Math.min(root.minimum, root.maximum)
+    readonly property real safeMaximum: Math.max(root.minimum, root.maximum)
+    readonly property real safeValue: Math.max(
+        root.safeMinimum,
+        Math.min(root.value, root.safeMaximum)
+    )
+
     width: 230
     height: 46
 
@@ -34,15 +41,15 @@ Card {
                 text: root.icon
                 color: root.muted ? WalTheme.fgMuted : WalTheme.fg
 
-                font.family: Theme.fontFamily
+                font.family: "JetBrainsMono Nerd Font"
                 font.pixelSize: 16
             }
         }
 
         Slider {
-            value: root.value
-            minimum: root.minimum
-            maximum: root.maximum
+            value: root.safeValue
+            minimum: root.safeMinimum
+            maximum: root.safeMaximum
 
             sliderWidth: 115
             sliderHeight: 5

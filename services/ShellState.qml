@@ -21,6 +21,7 @@ QtObject {
 
     property bool overviewOpen: false
 
+    // Kept for overview drag support.
     property string draggedWindowAddress: ""
     property string draggedWindowTitle: ""
     property string draggedWindowWorkspace: ""
@@ -28,6 +29,13 @@ QtObject {
     property real dragGlobalX: -1
     property real dragGlobalY: -1
     property bool dragReleaseRequested: false
+
+    function closeOsds() {
+        volumeOsdOpen = false
+        brightnessOsdOpen = false
+        lockOsdOpen = false
+        powerProfileOsdOpen = false
+    }
 
     function closeAllPopups() {
         powerMenuOpen = false
@@ -40,6 +48,7 @@ QtObject {
         clipboardOpen = false
 
         overviewOpen = false
+
         clearDraggedWindow()
     }
 
@@ -54,6 +63,7 @@ QtObject {
         clipboardOpen = false
 
         overviewOpen = false
+
         clearDraggedWindow()
     }
 
@@ -170,8 +180,35 @@ QtObject {
             openOverview()
     }
 
+    function showVolumeOsd() {
+        closeOsds()
+        volumeOsdOpen = true
+    }
+
+    function hideVolumeOsd() {
+        volumeOsdOpen = false
+    }
+
+    function showBrightnessOsd() {
+        closeOsds()
+        brightnessOsdOpen = true
+    }
+
+    function hideBrightnessOsd() {
+        brightnessOsdOpen = false
+    }
+
+    function showLockOsd() {
+        closeOsds()
+        lockOsdOpen = true
+    }
+
+    function hideLockOsd() {
+        lockOsdOpen = false
+    }
+
     function showPowerProfileOsd() {
-        powerProfileOsdOpen = false
+        closeOsds()
         powerProfileOsdOpen = true
     }
 
@@ -180,15 +217,15 @@ QtObject {
     }
 
     function setDraggedWindow(address, title, workspaceName) {
-        draggedWindowAddress = address || ""
-        draggedWindowTitle = title || ""
-        draggedWindowWorkspace = workspaceName || ""
+        draggedWindowAddress = String(address || "")
+        draggedWindowTitle = String(title || "")
+        draggedWindowWorkspace = String(workspaceName || "")
         dragReleaseRequested = false
     }
 
     function updateDragPosition(x, y) {
-        dragGlobalX = x
-        dragGlobalY = y
+        dragGlobalX = Number(x)
+        dragGlobalY = Number(y)
     }
 
     function requestDragRelease() {

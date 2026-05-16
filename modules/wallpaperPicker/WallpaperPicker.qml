@@ -28,6 +28,10 @@ PanelWindow {
         bottom: true
     }
 
+    exclusionMode: ExclusionMode.Ignore
+    aboveWindows: true
+    focusable: true
+
     color: "transparent"
 
     HyprlandFocusGrab {
@@ -37,7 +41,8 @@ PanelWindow {
         active: ShellState.wallpaperPickerOpen
 
         onCleared: {
-            root.closePicker()
+            if (ShellState.wallpaperPickerOpen)
+                root.closePicker()
         }
     }
 
@@ -115,10 +120,20 @@ PanelWindow {
 
         onWallpaperApplied: function(path) {
             root.currentWallpaperPath = path
+            root.closePicker()
         }
 
         onWallpaperRestored: function(path) {
             root.currentWallpaperPath = path
+            root.closePicker()
+        }
+
+        onWallpaperApplyFailed: function(path) {
+            console.log("Wallpaper apply failed:", path)
+        }
+
+        onWallpaperRestoreFailed: function(path) {
+            console.log("Wallpaper restore failed:", path)
         }
     }
 
@@ -132,6 +147,10 @@ PanelWindow {
         wallpaperActions.readCurrentWallpaper()
 
         focusTimer.restart()
+
+        Qt.callLater(function() {
+            panel.forceActiveFocus()
+        })
     }
 
     function closePickerAnimation() {
@@ -157,20 +176,22 @@ PanelWindow {
     }
 
     function selectWallpaper(path, name, url) {
-        root.selectedPath = path
-        root.selectedName = name
-        root.selectedUrl = url
+        root.selectedPath = String(path || "")
+        root.selectedName = String(name || "")
+        root.selectedUrl = String(url || "")
     }
 
     function applyWallpaperPath(path, name, url) {
-        if (path.length === 0)
+        const cleanPath = String(path || "")
+
+        if (cleanPath.length === 0)
             return
 
-        root.selectWallpaper(path, name, url)
-        wallpaperActions.applyWallpaper(path)
+        if (wallpaperActions.applying)
+            return
 
-        root.currentWallpaperPath = path
-        root.closePicker()
+        root.selectWallpaper(cleanPath, name, url)
+        wallpaperActions.applyWallpaper(cleanPath)
     }
 
     ListModel {
@@ -183,23 +204,38 @@ PanelWindow {
         animationDuration: Animations.popupFade
 
         onClicked: {
-            root.closePicker()
+            if (!wallpaperActions.applying)
+                root.closePicker()
         }
     }
 
     Card {
         id: panel
 
-        width: Math.min(parent.width - 80, 1060)
+        width: Math.max(360, Math.min(parent.width - 80, 1060))
         height: 360
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 18
 
+        focus: true
+
         cardRadius: 24
         cardColor: Theme.pillBg
-        cardBorderColor: WalTheme.border
+        cardBorderColor: wallpaperActions.applying
+            ? WalTheme.accent
+            : WalTheme.border
+
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Escape) {
+                if (!wallpaperActions.applying)
+                    root.closePicker()
+
+                event.accepted = true
+                return
+            }
+        }
 
         transform: Translate {
             y: ShellState.wallpaperPickerOpen ? 0 : panel.height + 40
@@ -220,15 +256,16 @@ PanelWindow {
         Column {
             anchors.fill: parent
             anchors.margins: 28
-
             spacing: 16
 
             WallpaperHeader {
                 width: parent.width
                 imageCount: wallpapersModel.count
+                applying: wallpaperActions.applying
 
                 onCloseRequested: {
-                    root.closePicker()
+                    if (!wallpaperActions.applying)
+                        root.closePicker()
                 }
             }
 
@@ -240,8 +277,21 @@ PanelWindow {
                 text: root.searchText
                 placeholder: "Search wallpapers ..."
 
+                enabled: !wallpaperActions.applying
+                opacity: wallpaperActions.applying ? 0.55 : 1.0
+
                 onTextChanged: {
                     root.searchText = text
+                }
+
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Escape) {
+                        if (!wallpaperActions.applying)
+                            root.closePicker()
+
+                        event.accepted = true
+                        return
+                    }
                 }
             }
 
@@ -253,9 +303,11 @@ PanelWindow {
                 searchText: root.searchText
                 currentWallpaperPath: root.currentWallpaperPath
                 selectedPath: root.selectedPath
+                applying: wallpaperActions.applying
 
                 onHovered: function(path, name, url) {
-                    root.selectWallpaper(path, name, url)
+                    if (!wallpaperActions.applying)
+                        root.selectWallpaper(path, name, url)
                 }
 
                 onChosen: function(path, name, url) {

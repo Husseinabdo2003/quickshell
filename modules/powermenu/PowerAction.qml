@@ -11,20 +11,55 @@ Card {
     property string label: ""
     property string command: ""
 
-    signal triggered()
+    property bool locked: false
+    property bool needsConfirmation: false
+    property bool confirming: false
+    property bool danger: false
+
+    signal requested(string command)
 
     width: 105
     height: 124
 
     cardRadius: 24
-    cardColor: Theme.pillBg
+    cardColor: root.confirming
+        ? WalTheme.urgentAlpha
+        : Theme.pillBg
 
     cardBorderWidth: 1
-    cardBorderColor: mouseArea.containsMouse
-        ? WalTheme.accent
-        : WalTheme.border
+    cardBorderColor: root.confirming
+        ? WalTheme.urgent
+        : mouseArea.containsMouse && !root.locked
+            ? WalTheme.accent
+            : WalTheme.border
 
-    scale: mouseArea.pressed ? 0.97 : 1.0
+    scale: mouseArea.pressed && !root.locked ? 0.97 : 1.0
+    opacity: root.locked ? 0.55 : 1.0
+
+    Timer {
+        id: confirmTimer
+
+        interval: 1800
+        repeat: false
+
+        onTriggered: {
+            root.confirming = false
+        }
+    }
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: Animations.fast
+            easing.type: Easing.OutCubic
+        }
+    }
+
+    Behavior on cardColor {
+        ColorAnimation {
+            duration: Animations.fast
+            easing.type: Easing.OutCubic
+        }
+    }
 
     Behavior on cardBorderColor {
         ColorAnimation {
@@ -40,6 +75,26 @@ Card {
         }
     }
 
+    function triggerAction() {
+        if (root.locked)
+            return
+
+        const cleanCommand = String(root.command || "").trim()
+
+        if (cleanCommand.length === 0)
+            return
+
+        if (root.needsConfirmation && !root.confirming) {
+            root.confirming = true
+            confirmTimer.restart()
+            return
+        }
+
+        confirmTimer.stop()
+        root.confirming = false
+        root.requested(cleanCommand)
+    }
+
     Column {
         anchors.centerIn: parent
         spacing: 10
@@ -52,14 +107,18 @@ Card {
 
             cardRadius: 17
 
-            cardColor: mouseArea.containsMouse
-                ? WalTheme.accentAlpha
-                : WalTheme.surfaceAlpha
+            cardColor: root.confirming
+                ? WalTheme.urgentAlpha
+                : mouseArea.containsMouse && !root.locked
+                    ? WalTheme.accentAlpha
+                    : WalTheme.surfaceAlpha
 
             cardBorderWidth: 1
-            cardBorderColor: mouseArea.containsMouse
-                ? WalTheme.accent
-                : WalTheme.border
+            cardBorderColor: root.confirming
+                ? WalTheme.urgent
+                : mouseArea.containsMouse && !root.locked
+                    ? WalTheme.accent
+                    : WalTheme.border
 
             Behavior on cardColor {
                 ColorAnimation {
@@ -78,11 +137,13 @@ Card {
             Text {
                 anchors.centerIn: parent
 
-                text: root.icon
-                color: WalTheme.fg
+                text: root.confirming ? "!" : root.icon
+                color: root.confirming
+                    ? WalTheme.urgent
+                    : WalTheme.fg
 
                 font.family: "JetBrainsMono Nerd Font"
-                font.pixelSize: 21
+                font.pixelSize: root.confirming ? 22 : 21
                 font.bold: true
             }
         }
@@ -90,9 +151,26 @@ Card {
         TitleText {
             anchors.horizontalCenter: parent.horizontalCenter
 
-            text: root.label
+            text: root.confirming ? "Confirm" : root.label
             font.pixelSize: Theme.fontSize
-            color: WalTheme.fg
+            color: root.confirming
+                ? WalTheme.urgent
+                : WalTheme.fg
+        }
+
+        MetaText {
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            visible: root.needsConfirmation || root.locked
+
+            text: root.locked
+                ? "Running"
+                : root.confirming
+                    ? "Click again"
+                    : "2-step"
+
+            font.pixelSize: 10
+            accentText: root.confirming
         }
     }
 
@@ -100,14 +178,12 @@ Card {
         id: mouseArea
 
         anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
+        hoverEnabled: !root.locked
+        enabled: !root.locked
+        cursorShape: root.locked ? Qt.ArrowCursor : Qt.PointingHandCursor
 
         onClicked: {
-            root.triggered()
-
-            if (root.command.length > 0)
-                Quickshell.execDetached(["bash", "-lc", root.command])
+            root.triggerAction()
         }
     }
 }

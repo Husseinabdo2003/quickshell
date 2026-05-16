@@ -35,12 +35,32 @@ QtObject {
         return activeCategory
     }
 
-    function filteredItems(items) {
-        if (root.activeCategory === "all")
+    function safeItems(items) {
+        if (Array.isArray(items))
             return items
 
-        return items.filter(function(item) {
-            return item.category === root.activeCategory
+        return []
+    }
+
+    function normalizedCategory(item) {
+        if (!item || item.category === undefined || item.category === null)
+            return ""
+
+        try {
+            return String(item.category).toLowerCase().trim()
+        } catch (error) {
+            return ""
+        }
+    }
+
+    function filteredItems(items) {
+        const list = root.safeItems(items)
+
+        if (root.activeCategory === "all")
+            return list.slice()
+
+        return list.filter(function(item) {
+            return root.normalizedCategory(item) === root.activeCategory
         })
     }
 }

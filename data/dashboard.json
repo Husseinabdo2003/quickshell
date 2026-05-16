@@ -2,16 +2,6 @@
     "generatedBy": "hypr/lua/dashboard.lua",
     "sections": {
         "items": [
-        {
-            "id": "1",
-            "category": "projects",
-            "type": "project",
-            "title": "Hall Sensor",
-            "course": "Industrial Sensor",
-            "date": "2026-5-13",
-            "priority": "High",
-            "status": "upcoming"
-        }
         ]
     }
 }

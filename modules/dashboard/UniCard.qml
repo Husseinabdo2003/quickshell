@@ -13,6 +13,7 @@ Card {
     property string date: ""
     property string priority: ""
     property string status: ""
+    property bool busy: false
 
     signal removeRequested(string itemId)
 
@@ -22,13 +23,22 @@ Card {
     cardColor: Theme.pillBg
     cardBorderColor: WalTheme.border
 
+    opacity: root.busy ? 0.65 : 1.0
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: Animations.fast
+            easing.type: Easing.OutCubic
+        }
+    }
+
     Row {
         anchors.fill: parent
         anchors.margins: 14
         spacing: 12
 
         AccentStrip {
-            height: parent.height - 10
+            height: Math.max(0, parent.height - 10)
             danger: root.priority === "high"
             accent: root.priority !== "high"
 
@@ -36,7 +46,7 @@ Card {
         }
 
         Column {
-            width: parent.width - 72
+            width: Math.max(0, parent.width - 72)
             anchors.verticalCenter: parent.verticalCenter
             spacing: 7
 
@@ -55,10 +65,11 @@ Card {
                 }
 
                 TitleText {
-                    width: parent.width - 96
+                    width: Math.max(0, parent.width - 96)
 
                     text: root.title
                     font.pixelSize: 15
+                    elide: Text.ElideRight
                 }
             }
 
@@ -68,16 +79,19 @@ Card {
 
                 MetaText {
                     text: root.course
-                    width: parent.width * 0.40
+                    width: Math.max(0, parent.width * 0.40)
+                    elide: Text.ElideRight
                 }
 
                 MetaText {
                     text: root.date
+                    elide: Text.ElideRight
                 }
 
                 MetaText {
                     text: root.status
-                    width: parent.width * 0.25
+                    width: Math.max(0, parent.width * 0.25)
+                    elide: Text.ElideRight
                 }
             }
         }
@@ -90,10 +104,14 @@ Card {
             icon: "×"
             danger: true
 
+            enabled: !root.busy
+            opacity: root.busy ? 0.45 : 1.0
+
             anchors.verticalCenter: parent.verticalCenter
 
             onClicked: {
-                root.removeRequested(root.itemId)
+                if (!root.busy)
+                    root.removeRequested(root.itemId)
             }
         }
     }

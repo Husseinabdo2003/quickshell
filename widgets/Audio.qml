@@ -27,7 +27,7 @@ BarInfoPill {
     value: !ready
         ? "N/A"
         : muted
-            ? "0%"
+            ? "Muted"
             : volume + "%"
 
     strong: muted || volume >= 100

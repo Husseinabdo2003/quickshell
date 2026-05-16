@@ -8,6 +8,7 @@ Card {
 
     property string value: ""
     property bool selected: false
+    property bool busy: false
 
     signal clicked(string value)
 
@@ -18,17 +19,26 @@ Card {
 
     cardColor: root.selected
         ? WalTheme.accentAlpha
-        : mouseArea.containsMouse
+        : mouseArea.containsMouse && !root.busy
             ? Qt.rgba(WalTheme.fg.r, WalTheme.fg.g, WalTheme.fg.b, 0.055)
             : "transparent"
 
     cardBorderColor: root.selected
         ? WalTheme.accent
-        : mouseArea.containsMouse
+        : mouseArea.containsMouse && !root.busy
             ? WalTheme.border
             : "transparent"
 
-    cardBorderWidth: root.selected || mouseArea.containsMouse ? 1 : 0
+    cardBorderWidth: root.selected || (mouseArea.containsMouse && !root.busy) ? 1 : 0
+
+    opacity: root.busy ? 0.62 : 1.0
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: Animations.fast
+            easing.type: Easing.OutCubic
+        }
+    }
 
     Behavior on cardColor {
         ColorAnimation {
@@ -45,9 +55,13 @@ Card {
     }
 
     function previewText() {
-        return String(root.value || "")
-            .replace(/\t/g, "    ")
-            .replace(/\n/g, " ")
+        try {
+            return String(root.value || "")
+                .replace(/\t/g, "    ")
+                .replace(/\n/g, " ")
+        } catch (error) {
+            return ""
+        }
     }
 
     Row {
@@ -110,7 +124,7 @@ Card {
 
             visible: root.selected
 
-            text: "Enter"
+            text: root.busy ? "..." : "Enter"
             accent: true
             badgeHeight: 22
             badgeRadius: 11
@@ -123,8 +137,9 @@ Card {
         id: mouseArea
 
         anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
+        hoverEnabled: !root.busy
+        enabled: !root.busy
+        cursorShape: root.busy ? Qt.ArrowCursor : Qt.PointingHandCursor
 
         onClicked: {
             root.clicked(root.value)

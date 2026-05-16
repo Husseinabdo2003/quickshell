@@ -47,7 +47,8 @@ PanelWindow {
         active: ShellState.notificationCenterOpen
 
         onCleared: {
-            ShellState.closeNotificationCenter()
+            if (ShellState.notificationCenterOpen)
+                ShellState.closeNotificationCenter()
         }
     }
 
@@ -82,12 +83,20 @@ PanelWindow {
         }
     }
 
+    function safeRebuildGroups() {
+        try {
+            if (NotificationService.rebuildGroups)
+                NotificationService.rebuildGroups()
+        } catch (error) {
+            console.log("Notification center rebuild failed:", error)
+        }
+    }
+
     function openCenterAnimation() {
         closeHideTimer.stop()
 
         root.windowAlive = true
-
-        NotificationService.rebuildGroups()
+        root.safeRebuildGroups()
 
         panel.x = root.closedX
         panel.opacity = 0.0
@@ -109,6 +118,10 @@ PanelWindow {
         slideAnimation.start()
         opacityAnimation.start()
         scaleAnimation.start()
+
+        Qt.callLater(function() {
+            panel.forceActiveFocus()
+        })
     }
 
     function closeCenterAnimation() {
@@ -157,6 +170,7 @@ PanelWindow {
         scale: 0.985
 
         enabled: ShellState.notificationCenterOpen
+        focus: true
 
         cardRadius: 30
         cardColor: Theme.pillBg
@@ -165,6 +179,14 @@ PanelWindow {
 
         layer.enabled: true
         layer.smooth: true
+
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Escape) {
+                ShellState.closeNotificationCenter()
+                event.accepted = true
+                return
+            }
+        }
 
         NumberAnimation {
             id: slideAnimation
@@ -220,7 +242,11 @@ PanelWindow {
                 }
 
                 Item {
-                    width: parent.width - titleText.implicitWidth - clearButton.width
+                    width: Math.max(
+                        0,
+                        parent.width - titleText.implicitWidth - clearButton.width
+                    )
+
                     height: 1
                 }
 
@@ -234,6 +260,9 @@ PanelWindow {
                     muted: true
                     buttonRadius: 14
                     fontSize: Theme.fontSize
+
+                    enabled: NotificationService.appGroups.length > 0
+                    opacity: enabled ? 1.0 : 0.45
 
                     onClicked: {
                         NotificationService.clearAll()
@@ -260,7 +289,7 @@ PanelWindow {
                 id: flick
 
                 width: parent.width
-                height: parent.height - 60
+                height: Math.max(0, parent.height - 60)
 
                 contentHeight: groupsColumn.implicitHeight
                 clip: true
@@ -303,8 +332,13 @@ PanelWindow {
     }
 
     Component.onCompleted: {
-        panel.x = root.closedX
-        panel.opacity = 0.0
-        panel.scale = 0.985
+        root.windowAlive = ShellState.notificationCenterOpen
+
+        panel.x = ShellState.notificationCenterOpen
+            ? root.openX
+            : root.closedX
+
+        panel.opacity = ShellState.notificationCenterOpen ? 1.0 : 0.0
+        panel.scale = ShellState.notificationCenterOpen ? 1.0 : 0.985
     }
 }

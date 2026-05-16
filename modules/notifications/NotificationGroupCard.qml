@@ -17,6 +17,7 @@ Item {
     readonly property var latest: groupData && groupData.latest ? groupData.latest : null
     readonly property int count: items.length
     readonly property bool stacked: count > 1
+    readonly property var expandedItems: root.safeExpandedItems()
 
     width: parent ? parent.width : 320
 
@@ -31,6 +32,33 @@ Item {
             duration: 220
             easing.type: Easing.OutCubic
         }
+    }
+
+    function safeExpandedItems() {
+        const result = []
+
+        if (!root.items)
+            return result
+
+        const latestKey = root.latest && root.latest.key
+            ? String(root.latest.key)
+            : ""
+
+        for (let i = 0; i < root.items.length; i++) {
+            const item = root.items[i]
+
+            if (!item)
+                continue
+
+            const key = item.key ? String(item.key) : ""
+
+            if (latestKey.length > 0 && key === latestKey)
+                continue
+
+            result.push(item)
+        }
+
+        return result
     }
 
     NotificationCard {
@@ -66,7 +94,7 @@ Item {
         height: 104
 
         Card {
-            width: parent.width - 24
+            width: Math.max(0, parent.width - 24)
             height: 76
 
             anchors.horizontalCenter: parent.horizontalCenter
@@ -82,7 +110,7 @@ Item {
         }
 
         Card {
-            width: parent.width - 12
+            width: Math.max(0, parent.width - 12)
             height: 82
 
             anchors.horizontalCenter: parent.horizontalCenter
@@ -245,7 +273,7 @@ Item {
         }
 
         Repeater {
-            model: root.items
+            model: root.expandedItems
 
             NotificationCard {
                 required property var modelData

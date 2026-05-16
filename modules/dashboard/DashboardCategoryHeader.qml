@@ -15,8 +15,9 @@ Row {
         text: root.title
         font.pixelSize: 16
 
-        width: parent.width - 80
+        width: Math.max(0, parent.width - 80)
         anchors.verticalCenter: parent.verticalCenter
+        elide: Text.ElideRight
     }
 
     MetaText {

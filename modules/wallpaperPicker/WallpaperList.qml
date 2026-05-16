@@ -7,40 +7,92 @@ Item {
     property string searchText: ""
     property string currentWallpaperPath: ""
     property string selectedPath: ""
+    property bool applying: false
+
+    property var filteredIndexes: []
+    property int modelCountValue: root.model ? root.model.count : 0
 
     signal hovered(string path, string name, string url)
     signal chosen(string path, string name, string url)
 
+    onSearchTextChanged: {
+        root.rebuildFilter()
+        flick.contentX = 0
+    }
+
+    onModelChanged: {
+        root.rebuildFilter()
+        flick.contentX = 0
+    }
+
+    onModelCountValueChanged: {
+        root.rebuildFilter()
+    }
+
+    function clean(value) {
+        try {
+            return String(value || "").toLowerCase().trim()
+        } catch (error) {
+            return ""
+        }
+    }
+
     function matchesSearch(name) {
-        if (root.searchText.length === 0)
+        const query = root.clean(root.searchText)
+
+        if (query.length === 0)
             return true
 
-        return name.toLowerCase().indexOf(root.searchText.toLowerCase()) !== -1
+        return root.clean(name).indexOf(query) !== -1
     }
 
     function modelCount() {
         return root.model ? root.model.count : 0
     }
 
-    function modelPath(i) {
+    function modelItem(i) {
         if (!root.model || i < 0 || i >= root.model.count)
+            return null
+
+        return root.model.get(i)
+    }
+
+    function modelPath(i) {
+        const item = root.modelItem(i)
+
+        if (!item)
             return ""
 
-        return root.model.get(i).path || ""
+        return String(item.path || "")
     }
 
     function modelName(i) {
-        if (!root.model || i < 0 || i >= root.model.count)
+        const item = root.modelItem(i)
+
+        if (!item)
             return ""
 
-        return root.model.get(i).name || ""
+        return String(item.name || "")
     }
 
     function modelUrl(i) {
-        if (!root.model || i < 0 || i >= root.model.count)
+        const item = root.modelItem(i)
+
+        if (!item)
             return ""
 
-        return root.model.get(i).url || ""
+        return String(item.url || "")
+    }
+
+    function rebuildFilter() {
+        const indexes = []
+
+        for (let i = 0; i < root.modelCount(); i++) {
+            if (root.matchesSearch(root.modelName(i)))
+                indexes.push(i)
+        }
+
+        root.filteredIndexes = indexes
     }
 
     Flickable {
@@ -82,16 +134,18 @@ Item {
             spacing: 20
 
             Repeater {
-                model: root.modelCount()
+                model: root.filteredIndexes
 
                 WallpaperCard {
-                    wallpaperPath: root.modelPath(index)
-                    wallpaperName: root.modelName(index)
-                    wallpaperUrl: root.modelUrl(index)
+                    required property int modelData
 
-                    shown: root.matchesSearch(root.modelName(index))
-                    active: root.currentWallpaperPath === root.modelPath(index)
-                    selected: root.selectedPath === root.modelPath(index)
+                    wallpaperPath: root.modelPath(modelData)
+                    wallpaperName: root.modelName(modelData)
+                    wallpaperUrl: root.modelUrl(modelData)
+
+                    active: root.currentWallpaperPath === root.modelPath(modelData)
+                    selected: root.selectedPath === root.modelPath(modelData)
+                    busy: root.applying
 
                     onHovered: function(path, name, url) {
                         root.hovered(path, name, url)
@@ -114,5 +168,9 @@ Item {
             viewportWidthValue: flick.width
             contentXValue: flick.contentX
         }
+    }
+
+    Component.onCompleted: {
+        root.rebuildFilter()
     }
 }

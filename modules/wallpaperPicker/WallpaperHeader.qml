@@ -6,6 +6,7 @@ Row {
     id: root
 
     property int imageCount: 0
+    property bool applying: false
 
     signal closeRequested()
 
@@ -16,27 +17,31 @@ Row {
     HeadingText {
         id: titleText
 
-        text: "󰸉  Wallpapers"
+        text: root.applying ? "󰸉  Applying Wallpaper..." : "󰸉  Wallpapers"
         font.pixelSize: 20
 
         anchors.verticalCenter: parent.verticalCenter
     }
 
     Item {
-        width: parent.width
-            - titleText.implicitWidth
-            - countBadge.width
-            - closeButton.width
-            - 48
+        width: Math.max(
+            0,
+            parent.width
+                - titleText.implicitWidth
+                - countBadge.width
+                - closeButton.width
+                - 48
+        )
+
         height: 1
     }
 
     Badge {
         id: countBadge
 
-        text: root.imageCount + " images"
-        muted: true
-        accent: false
+        text: root.applying ? "Working" : root.imageCount + " images"
+        muted: !root.applying
+        accent: root.applying
         badgeHeight: 28
         badgeRadius: 14
         fontSize: 11
@@ -54,6 +59,9 @@ Row {
 
         icon: "×"
         muted: true
+
+        enabled: !root.applying
+        opacity: root.applying ? 0.45 : 1.0
 
         anchors.verticalCenter: parent.verticalCenter
 

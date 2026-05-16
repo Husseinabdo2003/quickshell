@@ -9,7 +9,12 @@ Rectangle {
     property real viewportWidthValue: 1
     property real contentXValue: 0
 
-    visible: contentWidthValue > viewportWidthValue
+    readonly property real safeContentWidth: Math.max(0, root.contentWidthValue)
+    readonly property real safeViewportWidth: Math.max(1, root.viewportWidthValue)
+    readonly property real maxContentX: Math.max(0, root.safeContentWidth - root.safeViewportWidth)
+    readonly property real safeContentX: Math.max(0, Math.min(root.contentXValue, root.maxContentX))
+
+    visible: root.safeContentWidth > root.safeViewportWidth
 
     height: 4
     radius: 999
@@ -26,12 +31,12 @@ Rectangle {
         radius: 999
         color: WalTheme.accent
 
-        width: root.contentWidthValue > 0
-            ? Math.max(80, parent.width * root.viewportWidthValue / root.contentWidthValue)
+        width: root.safeContentWidth > 0
+            ? Math.min(parent.width, Math.max(80, parent.width * root.safeViewportWidth / root.safeContentWidth))
             : 80
 
-        x: root.contentWidthValue > root.viewportWidthValue
-            ? (parent.width - width) * root.contentXValue / (root.contentWidthValue - root.viewportWidthValue)
+        x: root.safeContentWidth > root.safeViewportWidth
+            ? (parent.width - width) * root.safeContentX / (root.safeContentWidth - root.safeViewportWidth)
             : 0
 
         Behavior on x {

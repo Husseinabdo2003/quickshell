@@ -30,15 +30,36 @@ PanelWindow {
     property string lockState: "OFF"
     property string lockIcon: "󰌌"
 
+    property string pendingLock: ""
+
     IpcHandler {
         target: "lockOsd"
 
         function caps(): void {
-            capsProcess.running = true
+            root.requestRead("caps")
         }
 
         function num(): void {
-            numProcess.running = true
+            root.requestRead("num")
+        }
+    }
+
+    Timer {
+        id: readDelayTimer
+
+        interval: 70
+        repeat: false
+
+        onTriggered: {
+            if (root.pendingLock === "caps") {
+                root.startCapsRead()
+                return
+            }
+
+            if (root.pendingLock === "num") {
+                root.startNumRead()
+                return
+            }
         }
     }
 
@@ -47,8 +68,8 @@ PanelWindow {
 
         command: [
             "bash",
-            "-c",
-            "sleep 0.05; f=$(ls /sys/class/leds/*::capslock/brightness 2>/dev/null | head -1); [ -n \"$f\" ] && cat \"$f\" || echo 0"
+            "-lc",
+            "f=$(ls /sys/class/leds/*::capslock/brightness 2>/dev/null | head -1); [ -n \"$f\" ] && cat \"$f\" || echo 0"
         ]
 
         stdout: StdioCollector {
@@ -61,6 +82,13 @@ PanelWindow {
                 root.show()
             }
         }
+
+        onExited: function(exitCode) {
+            if (root.pendingLock === "caps") {
+                root.pendingLock = ""
+                root.startCapsRead()
+            }
+        }
     }
 
     Process {
@@ -68,8 +96,8 @@ PanelWindow {
 
         command: [
             "bash",
-            "-c",
-            "sleep 0.05; f=$(ls /sys/class/leds/*::numlock/brightness 2>/dev/null | head -1); [ -n \"$f\" ] && cat \"$f\" || echo 0"
+            "-lc",
+            "f=$(ls /sys/class/leds/*::numlock/brightness 2>/dev/null | head -1); [ -n \"$f\" ] && cat \"$f\" || echo 0"
         ]
 
         stdout: StdioCollector {
@@ -82,6 +110,43 @@ PanelWindow {
                 root.show()
             }
         }
+
+        onExited: function(exitCode) {
+            if (root.pendingLock === "num") {
+                root.pendingLock = ""
+                root.startNumRead()
+            }
+        }
+    }
+
+    function requestRead(lockType) {
+        root.pendingLock = lockType
+        readDelayTimer.restart()
+    }
+
+    function startCapsRead() {
+        if (capsProcess.running) {
+            root.pendingLock = "caps"
+            return
+        }
+
+        root.pendingLock = ""
+        capsProcess.running = true
+    }
+
+    function startNumRead() {
+        if (numProcess.running) {
+            root.pendingLock = "num"
+            return
+        }
+
+        root.pendingLock = ""
+        numProcess.running = true
+    }
+
+    function show() {
+        ShellState.lockOsdOpen = true
+        autoHideTimer.restart()
     }
 
     Card {
@@ -89,7 +154,9 @@ PanelWindow {
 
         cardRadius: 16
         cardColor: Theme.pillBg
-        cardBorderColor: WalTheme.border
+        cardBorderColor: root.lockState === "ON"
+            ? WalTheme.accent
+            : WalTheme.border
 
         Row {
             id: contentRow
@@ -110,7 +177,9 @@ PanelWindow {
                     anchors.centerIn: parent
 
                     text: root.lockIcon
-                    color: WalTheme.fg
+                    color: root.lockState === "ON"
+                        ? WalTheme.accent
+                        : WalTheme.fg
 
                     font.family: "JetBrainsMono Nerd Font"
                     font.pixelSize: 16
@@ -158,10 +227,5 @@ PanelWindow {
         onTriggered: {
             ShellState.lockOsdOpen = false
         }
-    }
-
-    function show() {
-        ShellState.lockOsdOpen = true
-        autoHideTimer.restart()
     }
 }

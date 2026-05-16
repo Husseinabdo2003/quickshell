@@ -27,6 +27,8 @@ PanelWindow {
     readonly property int launcherWidth: 620
     readonly property int launcherHeight: 560
 
+    property bool launchingApp: false
+
     HyprlandFocusGrab {
         id: focusGrab
 
@@ -70,13 +72,29 @@ PanelWindow {
         }
     }
 
+    Timer {
+        id: launchResetTimer
+
+        interval: 900
+        repeat: false
+
+        onTriggered: {
+            root.launchingApp = false
+        }
+    }
+
     Connections {
         target: ShellState
 
         function onLauncherOpenChanged() {
             if (ShellState.launcherOpen) {
+                root.launchingApp = false
+                launchResetTimer.stop()
+
                 launcherState.reset()
                 focusTimer.restart()
+            } else {
+                focusTimer.stop()
             }
         }
     }
@@ -86,24 +104,46 @@ PanelWindow {
     }
 
     function launchApp(app) {
-        if (!app)
+        if (!app || root.launchingApp)
             return
+
+        root.launchingApp = true
+        launchResetTimer.restart()
 
         root.closeLauncher()
 
         try {
-            app.execute()
+            if (app.entry && app.entry.execute) {
+                app.entry.execute()
+                return
+            }
         } catch (error) {
-            if (app.command && app.command.length > 0)
-                Quickshell.execDetached(app.command)
+            console.log("Launcher entry execute failed:", app.name, error)
         }
+
+        try {
+            if (app.command && String(app.command).trim().length > 0) {
+                Quickshell.execDetached(String(app.command))
+                return
+            }
+        } catch (error) {
+            console.log("Launcher fallback command failed:", app.name, error)
+        }
+
+        root.launchingApp = false
+        launchResetTimer.stop()
     }
 
     function launchSelected() {
-        if (launcherState.filteredApps.length === 0)
+        if (!launcherState.filteredApps || launcherState.filteredApps.length === 0)
             return
 
-        root.launchApp(launcherState.filteredApps[launcherState.selectedIndex])
+        const safeIndex = Math.max(
+            0,
+            Math.min(launcherState.selectedIndex, launcherState.filteredApps.length - 1)
+        )
+
+        root.launchApp(launcherState.filteredApps[safeIndex])
     }
 
     function updateListPosition() {
@@ -184,10 +224,6 @@ PanelWindow {
                     launcherState.selectedIndex = 0
                     launcherState.updateFilteredApps()
                     root.updateListPosition()
-                }
-
-                onAccepted: {
-                    root.launchSelected()
                 }
 
                 Keys.onPressed: function(event) {

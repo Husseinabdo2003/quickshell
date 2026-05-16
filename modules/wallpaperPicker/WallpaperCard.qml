@@ -10,16 +10,14 @@ Card {
     property string wallpaperName: ""
     property string wallpaperUrl: ""
 
-    property bool shown: true
     property bool active: false
     property bool selected: false
+    property bool busy: false
 
     signal hovered(string path, string name, string url)
     signal chosen(string path, string name, string url)
 
-    visible: shown
-
-    width: shown ? 260 : 0
+    width: 260
     height: 156
 
     cardRadius: 14
@@ -29,9 +27,17 @@ Card {
         ? WalTheme.accent
         : WalTheme.border
 
-    scale: mouse.containsMouse ? 1.035 : 1.0
+    scale: mouse.containsMouse && !root.busy ? 1.035 : 1.0
+    opacity: root.busy && !root.selected ? 0.58 : 1.0
 
     Behavior on scale {
+        NumberAnimation {
+            duration: 130
+            easing.type: Easing.OutCubic
+        }
+    }
+
+    Behavior on opacity {
         NumberAnimation {
             duration: 130
             easing.type: Easing.OutCubic
@@ -58,7 +64,7 @@ Card {
     Rectangle {
         anchors.fill: parent
 
-        color: mouse.containsMouse
+        color: mouse.containsMouse && !root.busy
             ? Qt.rgba(0, 0, 0, 0.18)
             : Qt.rgba(0, 0, 0, 0.30)
     }
@@ -80,6 +86,23 @@ Card {
         horizontalPadding: 20
     }
 
+    Badge {
+        visible: root.busy && root.selected
+
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.topMargin: 10
+        anchors.leftMargin: 10
+
+        text: "Applying"
+        accent: true
+        danger: false
+        badgeHeight: 26
+        badgeRadius: 13
+        fontSize: 11
+        horizontalPadding: 16
+    }
+
     TitleText {
         anchors.left: parent.left
         anchors.right: parent.right
@@ -92,14 +115,16 @@ Card {
 
         font.pixelSize: 12
         horizontalAlignment: Text.AlignHCenter
+        elide: Text.ElideRight
     }
 
     MouseArea {
         id: mouse
 
         anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
+        hoverEnabled: !root.busy
+        enabled: !root.busy
+        cursorShape: root.busy ? Qt.ArrowCursor : Qt.PointingHandCursor
 
         onEntered: {
             root.hovered(

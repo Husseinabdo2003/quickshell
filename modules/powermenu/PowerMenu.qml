@@ -11,6 +11,7 @@ PanelWindow {
     id: root
 
     property bool windowAlive: false
+    property bool actionRunning: false
 
     readonly property int panelWidth: 520
     readonly property int panelHeight: 260
@@ -38,7 +39,8 @@ PanelWindow {
         active: ShellState.powerMenuOpen
 
         onCleared: {
-            ShellState.closePowerMenu()
+            if (ShellState.powerMenuOpen)
+                ShellState.closePowerMenu()
         }
     }
 
@@ -65,6 +67,11 @@ PanelWindow {
             if (ShellState.powerMenuOpen) {
                 closeHideTimer.stop()
                 root.windowAlive = true
+                root.actionRunning = false
+
+                Qt.callLater(function() {
+                    panel.forceActiveFocus()
+                })
             } else {
                 closeHideTimer.restart()
             }
@@ -83,6 +90,31 @@ PanelWindow {
         }
     }
 
+    function closeMenu() {
+        ShellState.closePowerMenu()
+    }
+
+    function runPowerAction(command, closeImmediately) {
+        if (root.actionRunning)
+            return
+
+        const cleanCommand = String(command || "").trim()
+
+        if (cleanCommand.length === 0)
+            return
+
+        root.actionRunning = true
+
+        if (closeImmediately)
+            root.closeMenu()
+
+        Quickshell.execDetached([
+            "bash",
+            "-lc",
+            cleanCommand
+        ])
+    }
+
     PopupBackdrop {
         opened: ShellState.powerMenuOpen
         dimOpacity: 0.34
@@ -91,7 +123,7 @@ PanelWindow {
             : root.closeDuration
 
         onClicked: {
-            ShellState.closePowerMenu()
+            root.closeMenu()
         }
     }
 
@@ -114,6 +146,16 @@ PanelWindow {
         popupRadius: 30
         popupColor: Theme.pillBg
         popupBorderColor: WalTheme.border
+
+        focus: true
+
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Escape) {
+                root.closeMenu()
+                event.accepted = true
+                return
+            }
+        }
 
         MouseArea {
             anchors.fill: parent
@@ -138,7 +180,10 @@ PanelWindow {
                 MetaText {
                     anchors.horizontalCenter: parent.horizontalCenter
 
-                    text: "Choose a session action"
+                    text: root.actionRunning
+                        ? "Running selected action..."
+                        : "Choose a session action"
+
                     font.pixelSize: 11
                 }
             }
@@ -156,9 +201,11 @@ PanelWindow {
                     icon: ""
                     label: "Lock"
                     command: "loginctl lock-session"
+                    locked: root.actionRunning
+                    needsConfirmation: false
 
-                    onTriggered: {
-                        ShellState.closePowerMenu()
+                    onRequested: function(command) {
+                        root.runPowerAction(command, true)
                     }
                 }
 
@@ -166,9 +213,11 @@ PanelWindow {
                     icon: "󰒲"
                     label: "Suspend"
                     command: "systemctl suspend"
+                    locked: root.actionRunning
+                    needsConfirmation: false
 
-                    onTriggered: {
-                        ShellState.closePowerMenu()
+                    onRequested: function(command) {
+                        root.runPowerAction(command, true)
                     }
                 }
 
@@ -176,9 +225,12 @@ PanelWindow {
                     icon: ""
                     label: "Reboot"
                     command: "systemctl reboot"
+                    locked: root.actionRunning
+                    needsConfirmation: true
+                    danger: true
 
-                    onTriggered: {
-                        ShellState.closePowerMenu()
+                    onRequested: function(command) {
+                        root.runPowerAction(command, true)
                     }
                 }
 
@@ -186,12 +238,19 @@ PanelWindow {
                     icon: ""
                     label: "Shutdown"
                     command: "systemctl poweroff"
+                    locked: root.actionRunning
+                    needsConfirmation: true
+                    danger: true
 
-                    onTriggered: {
-                        ShellState.closePowerMenu()
+                    onRequested: function(command) {
+                        root.runPowerAction(command, true)
                     }
                 }
             }
         }
+    }
+
+    Component.onCompleted: {
+        root.windowAlive = ShellState.powerMenuOpen
     }
 }

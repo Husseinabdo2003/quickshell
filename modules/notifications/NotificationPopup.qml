@@ -23,11 +23,11 @@ PanelWindow {
     implicitWidth: cardWidth
     implicitHeight: Math.max(
         1,
-        Math.min(popupCards.length, maxVisibleCards) * (cardHeight + cardGap)
+        Math.min(root.activeCardCount(), root.maxVisibleCards) * (root.cardHeight + root.cardGap)
     )
 
     color: "transparent"
-    visible: popupCards.length > 0
+    visible: root.popupCards.length > 0
 
     property int cardWidth: 322
     property int cardHeight: 88
@@ -60,6 +60,7 @@ PanelWindow {
             property real targetY: 0
             property bool opened: false
             property bool closing: false
+            property bool removedByStack: false
 
             signal removeRequested(var cardObject)
 
@@ -137,29 +138,49 @@ PanelWindow {
             }
 
             function close() {
-                if (card.closing)
+                if (card.closing || card.removedByStack)
                     return
 
                 card.closing = true
                 card.opened = false
+                autoHideTimer.stop()
                 removeTimer.restart()
             }
 
             Component.onCompleted: {
                 Qt.callLater(function() {
-                    card.opened = true
-                    autoHideTimer.restart()
+                    if (!card.removedByStack) {
+                        card.opened = true
+                        autoHideTimer.restart()
+                    }
                 })
             }
         }
     }
 
+    function activeCardCount() {
+        let count = 0
+
+        for (let i = 0; i < root.popupCards.length; i++) {
+            const card = root.popupCards[i]
+
+            if (card && !card.closing && !card.removedByStack)
+                count += 1
+        }
+
+        return count
+    }
+
     function addNotification(notification) {
+        if (!notification)
+            return
+
         const card = popupCardComponent.createObject(stackArea, {
             notification: notification,
             targetY: 0,
             opened: false,
-            closing: false
+            closing: false,
+            removedByStack: false
         })
 
         if (card === null)
@@ -173,20 +194,49 @@ PanelWindow {
 
         root.relayoutCards()
 
-        if (root.popupCards.length > root.maxVisibleCards)
-            root.popupCards[root.popupCards.length - 1].close()
+        root.trimOverflow()
+    }
+
+    function trimOverflow() {
+        const visibleCards = root.popupCards.filter(function(card) {
+            return card && !card.closing && !card.removedByStack
+        })
+
+        while (visibleCards.length > root.maxVisibleCards) {
+            const oldCard = visibleCards.pop()
+
+            if (oldCard)
+                oldCard.close()
+        }
     }
 
     function relayoutCards() {
+        let visibleIndex = 0
+
         for (let i = 0; i < root.popupCards.length; i++) {
             const card = root.popupCards[i]
 
-            card.targetY = i * (root.cardHeight + root.cardGap)
-            card.z = root.popupCards.length - i
+            if (!card || card.removedByStack)
+                continue
+
+            if (card.closing) {
+                card.z = 0
+                continue
+            }
+
+            card.targetY = visibleIndex * (root.cardHeight + root.cardGap)
+            card.z = root.popupCards.length - visibleIndex
+
+            visibleIndex += 1
         }
     }
 
     function removeCard(card) {
+        if (!card || card.removedByStack)
+            return
+
+        card.removedByStack = true
+
         const index = root.popupCards.indexOf(card)
 
         if (index >= 0) {
@@ -195,7 +245,12 @@ PanelWindow {
             root.popupCards = nextCards
         }
 
-        card.destroy()
         root.relayoutCards()
+
+        try {
+            card.destroy()
+        } catch (error) {
+            console.log("Popup notification destroy failed:", error)
+        }
     }
 }

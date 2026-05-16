@@ -17,11 +17,32 @@ Item {
     property var filteredItems: []
 
     property string selectedValue: ""
+    property string copyCommand: ""
+    property string deleteCommand: ""
+
+    property bool actionRunning: false
+    property bool reloadPending: false
+    property bool deleteAllConfirm: false
 
     readonly property bool deleteMode: mode === "delete"
 
+    Timer {
+        id: deleteAllConfirmTimer
+
+        interval: 2200
+        repeat: false
+
+        onTriggered: {
+            root.deleteAllConfirm = false
+        }
+    }
+
     function clean(value) {
-        return String(value || "").toLowerCase().trim()
+        try {
+            return String(value || "").toLowerCase().trim()
+        } catch (error) {
+            return ""
+        }
     }
 
     function reset() {
@@ -29,20 +50,28 @@ Item {
         root.selectedIndex = 0
         root.items = []
         root.filteredItems = []
+        root.selectedValue = ""
+        root.reloadPending = false
+        root.deleteAllConfirm = false
+        deleteAllConfirmTimer.stop()
 
         root.load()
     }
 
     function load() {
-        if (!listProcess.running)
-            listProcess.running = true
+        if (listProcess.running) {
+            root.reloadPending = true
+            return
+        }
+
+        listProcess.running = true
     }
 
     function filterItems() {
         const q = root.clean(root.query)
 
         if (q.length === 0) {
-            root.filteredItems = root.items
+            root.filteredItems = root.items.slice()
         } else {
             root.filteredItems = root.items.filter(function(item) {
                 return root.clean(item).indexOf(q) !== -1
@@ -57,6 +86,9 @@ Item {
     }
 
     function moveDown() {
+        if (root.actionRunning)
+            return
+
         root.selectedIndex = Math.min(
             root.selectedIndex + 1,
             Math.max(0, root.filteredItems.length - 1)
@@ -64,14 +96,22 @@ Item {
     }
 
     function moveUp() {
+        if (root.actionRunning)
+            return
+
         root.selectedIndex = Math.max(root.selectedIndex - 1, 0)
     }
 
     function selectedItem() {
-        if (root.filteredItems.length === 0)
+        if (!root.filteredItems || root.filteredItems.length === 0)
             return ""
 
-        return String(root.filteredItems[root.selectedIndex] || "")
+        const safeIndex = Math.max(
+            0,
+            Math.min(root.selectedIndex, root.filteredItems.length - 1)
+        )
+
+        return String(root.filteredItems[safeIndex] || "")
     }
 
     function shellQuote(value) {
@@ -80,8 +120,11 @@ Item {
 
     function runSelectedAction() {
         const value = root.selectedItem()
+        root.runItemAction(value)
+    }
 
-        if (value.length === 0)
+    function runItemAction(value) {
+        if (!value || String(value).length === 0)
             return
 
         if (root.deleteMode)
@@ -100,13 +143,20 @@ Item {
     }
 
     function copyItem(value) {
+        if (root.actionRunning || copyProcess.running || deleteProcess.running || deleteAllProcess.running)
+            return
+
         if (!value || String(value).length === 0)
             return
 
-        root.selectedValue = String(value)
+        root.actionRunning = true
+        root.deleteAllConfirm = false
+        deleteAllConfirmTimer.stop()
 
-        if (!copyProcess.running)
-            copyProcess.running = true
+        root.selectedValue = String(value)
+        root.copyCommand = "printf '%s' " + root.shellQuote(root.selectedValue) + " | cliphist decode | wl-copy"
+
+        copyProcess.running = true
     }
 
     function deleteSelected() {
@@ -119,18 +169,56 @@ Item {
     }
 
     function deleteItem(value) {
+        if (root.actionRunning || copyProcess.running || deleteProcess.running || deleteAllProcess.running)
+            return
+
         if (!value || String(value).length === 0)
             return
 
-        root.selectedValue = String(value)
+        root.actionRunning = true
+        root.deleteAllConfirm = false
+        deleteAllConfirmTimer.stop()
 
-        if (!deleteProcess.running)
-            deleteProcess.running = true
+        root.selectedValue = String(value)
+        root.deleteCommand = "printf '%s' " + root.shellQuote(root.selectedValue) + " | cliphist delete"
+
+        deleteProcess.running = true
+    }
+
+    function requestDeleteAll() {
+        if (root.actionRunning || deleteAllProcess.running)
+            return
+
+        if (!root.deleteAllConfirm) {
+            root.deleteAllConfirm = true
+            deleteAllConfirmTimer.restart()
+            return
+        }
+
+        root.deleteAll()
+    }
+
+    function cancelDeleteAllConfirm() {
+        root.deleteAllConfirm = false
+        deleteAllConfirmTimer.stop()
     }
 
     function deleteAll() {
-        if (!deleteAllProcess.running)
-            deleteAllProcess.running = true
+        if (root.actionRunning || copyProcess.running || deleteProcess.running || deleteAllProcess.running)
+            return
+
+        root.actionRunning = true
+        root.deleteAllConfirm = false
+        deleteAllConfirmTimer.stop()
+
+        deleteAllProcess.running = true
+    }
+
+    function finishAction() {
+        root.actionRunning = false
+        root.selectedValue = ""
+        root.copyCommand = ""
+        root.deleteCommand = ""
     }
 
     Process {
@@ -157,6 +245,13 @@ Item {
                 root.filterItems()
             }
         }
+
+        onExited: function(exitCode) {
+            if (root.reloadPending) {
+                root.reloadPending = false
+                root.load()
+            }
+        }
     }
 
     Process {
@@ -165,12 +260,14 @@ Item {
         command: [
             "bash",
             "-lc",
-            "printf '%s' " + root.shellQuote(root.selectedValue) + " | cliphist decode | wl-copy"
+            root.copyCommand
         ]
 
         stdout: StdioCollector {}
 
         onExited: function(exitCode) {
+            root.finishAction()
+
             if (exitCode === 0)
                 ShellState.closeClipboard()
         }
@@ -182,16 +279,16 @@ Item {
         command: [
             "bash",
             "-lc",
-            "printf '%s' " + root.shellQuote(root.selectedValue) + " | cliphist delete"
+            root.deleteCommand
         ]
 
         stdout: StdioCollector {}
 
         onExited: function(exitCode) {
-            if (exitCode === 0) {
-                root.selectedValue = ""
+            root.finishAction()
+
+            if (exitCode === 0)
                 root.load()
-            }
         }
     }
 
@@ -207,11 +304,13 @@ Item {
         stdout: StdioCollector {}
 
         onExited: function(exitCode) {
+            root.finishAction()
+
             if (exitCode === 0) {
-                root.selectedValue = ""
                 root.items = []
                 root.filteredItems = []
                 root.selectedIndex = 0
+                root.query = ""
             }
         }
     }

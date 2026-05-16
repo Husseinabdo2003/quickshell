@@ -30,13 +30,29 @@ PanelWindow {
     property string profileIcon: "󰾆"
     property string profileRaw: "balanced"
 
+    property bool readPending: false
+
+    IpcHandler {
+        target: "powerProfileOsd"
+
+        function show(): void {
+            root.show()
+        }
+
+        function refresh(): void {
+            root.readProfile(true)
+        }
+    }
+
     Connections {
         target: ShellState
 
         function onPowerProfileOsdOpenChanged() {
             if (ShellState.powerProfileOsdOpen) {
-                root.readProfile()
+                root.readProfile(true)
                 autoHideTimer.restart()
+            } else {
+                autoHideTimer.stop()
             }
         }
     }
@@ -47,7 +63,7 @@ PanelWindow {
         command: [
             "bash",
             "-lc",
-            "cat \"$HOME/.cache/power-profile-mode\" 2>/dev/null || powerprofilesctl get 2>/dev/null || echo balanced"
+            "powerprofilesctl get 2>/dev/null || echo balanced"
         ]
 
         stdout: StdioCollector {
@@ -55,11 +71,31 @@ PanelWindow {
                 root.setProfile(this.text.trim())
             }
         }
+
+        onExited: function(exitCode) {
+            if (root.readPending) {
+                root.readPending = false
+                root.readProfile(false)
+            }
+        }
     }
 
-    function readProfile() {
-        if (!readProfileProcess.running)
-            readProfileProcess.running = true
+    function show() {
+        ShellState.powerProfileOsdOpen = true
+        root.readProfile(true)
+        autoHideTimer.restart()
+    }
+
+    function readProfile(showAfterRead) {
+        if (showAfterRead)
+            ShellState.powerProfileOsdOpen = true
+
+        if (readProfileProcess.running) {
+            root.readPending = true
+            return
+        }
+
+        readProfileProcess.running = true
     }
 
     function setProfile(profile) {
@@ -79,6 +115,7 @@ PanelWindow {
             return
         }
 
+        root.profileRaw = "balanced"
         root.profileName = "Balanced"
         root.profileIcon = "󰾆"
     }
@@ -149,6 +186,6 @@ PanelWindow {
     }
 
     Component.onCompleted: {
-        root.readProfile()
+        root.readProfile(false)
     }
 }

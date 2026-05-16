@@ -70,7 +70,7 @@ PanelWindow {
         }
 
         function deleteAll(): void {
-            clipboardState.deleteAll()
+            clipboardState.requestDeleteAll()
         }
     }
 
@@ -96,6 +96,9 @@ PanelWindow {
             if (ShellState.clipboardOpen) {
                 clipboardState.reset()
                 focusTimer.restart()
+            } else {
+                focusTimer.stop()
+                clipboardState.cancelDeleteAllConfirm()
             }
         }
     }
@@ -250,16 +253,19 @@ PanelWindow {
 
                     visible: clipboardState.deleteMode
 
-                    width: visible ? 82 : 0
+                    width: visible ? 96 : 0
                     height: 28
 
-                    text: "Delete all"
-                    muted: true
+                    text: clipboardState.deleteAllConfirm ? "Confirm" : "Delete all"
+                    muted: !clipboardState.deleteAllConfirm
                     buttonRadius: 14
                     fontSize: 11
 
+                    opacity: clipboardState.actionRunning ? 0.55 : 1.0
+                    enabled: !clipboardState.actionRunning
+
                     onClicked: {
-                        clipboardState.deleteAll()
+                        clipboardState.requestDeleteAll()
                     }
                 }
 
@@ -268,7 +274,12 @@ PanelWindow {
 
                     anchors.verticalCenter: parent.verticalCenter
 
-                    text: clipboardState.deleteMode ? "Delete" : "Copy"
+                    text: clipboardState.actionRunning
+                        ? "Running"
+                        : clipboardState.deleteMode
+                            ? "Delete"
+                            : "Copy"
+
                     accent: !clipboardState.deleteMode
                     muted: clipboardState.deleteMode
                     badgeHeight: 24
@@ -312,10 +323,6 @@ PanelWindow {
                     clipboardState.selectedIndex = 0
                     clipboardState.filterItems()
                     root.updateListPosition()
-                }
-
-                onAccepted: {
-                    root.runSelectedAction()
                 }
 
                 Keys.onPressed: function(event) {
@@ -413,12 +420,10 @@ PanelWindow {
 
                                 value: String(modelData)
                                 selected: index === clipboardState.selectedIndex
+                                busy: clipboardState.actionRunning
 
                                 onClicked: function(value) {
-                                    if (clipboardState.deleteMode)
-                                        clipboardState.deleteItem(value)
-                                    else
-                                        clipboardState.copyItem(value)
+                                    clipboardState.runItemAction(value)
                                 }
                             }
                         }
@@ -480,14 +485,20 @@ PanelWindow {
                         HeadingText {
                             anchors.horizontalCenter: parent.horizontalCenter
 
-                            text: "No clipboard history"
+                            text: clipboardState.actionRunning
+                                ? "Working..."
+                                : "No clipboard history"
+
                             font.pixelSize: 16
                         }
 
                         MetaText {
                             anchors.horizontalCenter: parent.horizontalCenter
 
-                            text: "Copy something first."
+                            text: clipboardState.actionRunning
+                                ? "Please wait."
+                                : "Copy something first."
+
                             font.pixelSize: 12
                         }
                     }

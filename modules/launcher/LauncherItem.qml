@@ -53,8 +53,14 @@ Card {
         if (!root.app)
             return "Application"
 
-        if (root.app.name && String(root.app.name).length > 0)
-            return String(root.app.name)
+        try {
+            const name = String(root.app.name || "").trim()
+
+            if (name.length > 0)
+                return name
+        } catch (error) {
+            return "Application"
+        }
 
         return "Application"
     }
@@ -63,11 +69,18 @@ Card {
         if (!root.app)
             return ""
 
-        if (root.app.genericName && String(root.app.genericName).length > 0)
-            return String(root.app.genericName)
+        try {
+            const genericName = String(root.app.genericName || "").trim()
+            const comment = String(root.app.comment || "").trim()
 
-        if (root.app.comment && String(root.app.comment).length > 0)
-            return String(root.app.comment)
+            if (genericName.length > 0)
+                return genericName
+
+            if (comment.length > 0)
+                return comment
+        } catch (error) {
+            return ""
+        }
 
         return ""
     }
@@ -82,10 +95,14 @@ Card {
     }
 
     function iconName() {
-        if (!root.app || !root.app.icon)
+        if (!root.app)
             return ""
 
-        return String(root.app.icon).trim()
+        try {
+            return String(root.app.icon || "").trim()
+        } catch (error) {
+            return ""
+        }
     }
 
     function isDirectImageSource(source) {
@@ -108,6 +125,22 @@ Card {
         return source
     }
 
+    function safeIconPath(icon) {
+        if (!icon || String(icon).trim().length === 0)
+            return ""
+
+        try {
+            const resolved = Quickshell.iconPath(String(icon), true)
+
+            if (resolved && String(resolved).length > 0)
+                return String(resolved)
+        } catch (error) {
+            return ""
+        }
+
+        return ""
+    }
+
     function resolveIconSource() {
         const icon = root.iconName()
 
@@ -115,15 +148,15 @@ Card {
             if (root.isDirectImageSource(icon))
                 return root.directImageSource(icon)
 
-            const resolved = Quickshell.iconPath(icon, true)
+            const resolved = root.safeIconPath(icon)
 
-            if (resolved && String(resolved).length > 0)
+            if (resolved.length > 0)
                 return resolved
         }
 
-        const fallback = Quickshell.iconPath("application-x-executable", true)
+        const fallback = root.safeIconPath("application-x-executable")
 
-        if (fallback && String(fallback).length > 0)
+        if (fallback.length > 0)
             return fallback
 
         return ""

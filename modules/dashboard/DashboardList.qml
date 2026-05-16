@@ -8,6 +8,7 @@ Flickable {
 
     property var items: []
     property string activeCategory: "all"
+    property bool busy: false
 
     signal removeRequested(string itemId)
 
@@ -18,6 +19,13 @@ Flickable {
 
     boundsBehavior: Flickable.StopAtBounds
 
+    function safeItems() {
+        if (Array.isArray(root.items))
+            return root.items
+
+        return []
+    }
+
     function isOverview() {
         return root.activeCategory === "all"
     }
@@ -26,31 +34,39 @@ Flickable {
         if (!item || item.priority === undefined || item.priority === null)
             return ""
 
-        return String(item.priority).toLowerCase().trim()
+        try {
+            return String(item.priority).toLowerCase().trim()
+        } catch (error) {
+            return ""
+        }
     }
 
     function normalizedCategory(item) {
         if (!item || item.category === undefined || item.category === null)
             return ""
 
-        return String(item.category).toLowerCase().trim()
+        try {
+            return String(item.category).toLowerCase().trim()
+        } catch (error) {
+            return ""
+        }
     }
 
     function highPriorityItems() {
-        return root.items.filter(function(item) {
+        return root.safeItems().filter(function(item) {
             return root.normalizedPriority(item) === "high"
         })
     }
 
     function categoryItems(category) {
-        return root.items.filter(function(item) {
+        return root.safeItems().filter(function(item) {
             return root.normalizedCategory(item) === category
                 && root.normalizedPriority(item) !== "high"
         })
     }
 
     function hasAnyItems() {
-        return root.items && root.items.length > 0
+        return root.safeItems().length > 0
     }
 
     Column {
@@ -78,6 +94,7 @@ Flickable {
                 icon: "󰀦"
                 items: root.highPriorityItems()
                 danger: true
+                busy: root.busy
 
                 onRemoveRequested: function(itemId) {
                     root.removeRequested(itemId)
@@ -92,6 +109,7 @@ Flickable {
                 icon: "󰑴"
                 items: root.categoryItems("exams")
                 danger: false
+                busy: root.busy
 
                 onRemoveRequested: function(itemId) {
                     root.removeRequested(itemId)
@@ -106,6 +124,7 @@ Flickable {
                 icon: "󰏗"
                 items: root.categoryItems("projects")
                 danger: false
+                busy: root.busy
 
                 onRemoveRequested: function(itemId) {
                     root.removeRequested(itemId)
@@ -120,6 +139,7 @@ Flickable {
                 icon: "󰄬"
                 items: root.categoryItems("todo")
                 danger: false
+                busy: root.busy
 
                 onRemoveRequested: function(itemId) {
                     root.removeRequested(itemId)
@@ -134,7 +154,7 @@ Flickable {
             visible: !root.isOverview() && root.hasAnyItems()
 
             Repeater {
-                model: root.items
+                model: root.safeItems()
 
                 UniCard {
                     required property var modelData
@@ -148,6 +168,7 @@ Flickable {
                     date: String(modelData.date || "")
                     priority: String(modelData.priority || "")
                     status: String(modelData.status || "")
+                    busy: root.busy
 
                     onRemoveRequested: function(itemId) {
                         root.removeRequested(itemId)
@@ -206,11 +227,19 @@ Flickable {
         property string icon: ""
         property var items: []
         property bool danger: false
+        property bool busy: false
 
         signal removeRequested(string itemId)
 
         spacing: 8
-        visible: items && items.length > 0
+        visible: Array.isArray(items) && items.length > 0
+
+        function safeItems() {
+            if (Array.isArray(section.items))
+                return section.items
+
+            return []
+        }
 
         Card {
             width: section.width
@@ -254,7 +283,7 @@ Flickable {
                 }
 
                 Column {
-                    width: parent.width - 96
+                    width: Math.max(0, parent.width - 96)
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
 
@@ -276,7 +305,7 @@ Flickable {
                 Badge {
                     anchors.verticalCenter: parent.verticalCenter
 
-                    text: section.items.length + ""
+                    text: section.safeItems().length + ""
 
                     accent: !section.danger
                     danger: section.danger
@@ -295,7 +324,7 @@ Flickable {
             spacing: 8
 
             Repeater {
-                model: section.items
+                model: section.safeItems()
 
                 UniCard {
                     required property var modelData
@@ -309,6 +338,7 @@ Flickable {
                     date: String(modelData.date || "")
                     priority: String(modelData.priority || "")
                     status: String(modelData.status || "")
+                    busy: section.busy
 
                     onRemoveRequested: function(itemId) {
                         section.removeRequested(itemId)
