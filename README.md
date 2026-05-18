@@ -1,239 +1,159 @@
-# Hyprland + Quickshell Setup
+# Hyprland + Quickshell Desktop
 
-A custom Wayland desktop setup built around **Hyprland**, **Quickshell**, **Lua-generated Hyprland configs**, **Pywal theming**, and a fully custom popup/launcher/dashboard system.
+A custom Wayland desktop setup built around Hyprland, Quickshell, Lua-generated Hyprland config, Pywal theming, and native Quickshell UI modules.
 
-This configuration replaces the usual external menu workflow with native Quickshell UI modules for the app launcher, clipboard history, wallpaper picker, power menu, notifications, dashboard, OSDs, and workspace overview.
+The active desktop UI lives in:
 
----
+```text
+~/.config/quickshell
+```
 
-## Table of Contents
+The active Hyprland generator, generated config, and system scripts live in:
+
+```text
+~/.config/hypr
+```
+
+## Table Of Contents
 
 - [Overview](#overview)
-- [Main Features](#main-features)
 - [Architecture](#architecture)
-- [Quickshell Structure](#quickshell-structure)
-- [Hyprland Structure](#hyprland-structure)
-- [Core Quickshell Files](#core-quickshell-files)
+- [Repository Layout](#repository-layout)
+- [Quickshell Entry Point](#quickshell-entry-point)
+- [Quickshell Modules](#quickshell-modules)
 - [Shared Components](#shared-components)
 - [Services](#services)
-- [Modules](#modules)
-- [Hyprland Lua Generator](#hyprland-lua-generator)
+- [Hyprland Config](#hyprland-config)
+- [Lua Generator](#lua-generator)
 - [Scripts](#scripts)
+- [IPC Commands](#ipc-commands)
 - [Keybinds](#keybinds)
-- [Theme System](#theme-system)
-- [Wallpaper System](#wallpaper-system)
-- [Clipboard System](#clipboard-system)
-- [Dashboard System](#dashboard-system)
-- [Notification System](#notification-system)
-- [Power Profile OSD](#power-profile-osd)
-- [Lock Screen](#lock-screen)
+- [Data Flow](#data-flow)
+- [Theme And Wallpaper Flow](#theme-and-wallpaper-flow)
+- [Validation](#validation)
 - [Troubleshooting](#troubleshooting)
-- [Backup Commands](#backup-commands)
-- [Future Improvements](#future-improvements)
-
----
+- [Maintenance Notes](#maintenance-notes)
 
 ## Overview
 
-This setup is designed to make Hyprland feel like a complete custom desktop environment rather than just a window manager.
+This setup turns Hyprland into a full custom desktop environment:
 
-The main idea is:
+- Hyprland manages windows, workspaces, input, keybinds, autostart, and session behavior.
+- Quickshell renders the bar, popups, launcher, clipboard picker, notifications, OSDs, wallpaper picker, and overview.
+- Lua source files generate Hyprland `.conf` files and Quickshell dashboard data.
+- Pywal generates colors from the selected wallpaper.
+- Shell IPC connects Hyprland keybinds to Quickshell UI actions.
 
-- Hyprland handles windows, workspaces, keybinds, and system-level behavior.
-- Quickshell handles the visible desktop UI.
-- Lua generates the Hyprland configuration files.
-- Pywal extracts colors from the current wallpaper.
-- Generated theme files update Quickshell, Hyprland, Hyprlock, and related visuals.
-
-The setup is modular. Most features live in their own Quickshell module or Lua config file, making the system easier to edit and extend.
-
----
-
-## Main Features
-
-### Quickshell UI
-
-- Custom top bar.
-- Custom app launcher replacing Rofi.
-- Custom clipboard picker replacing Rofi clipboard menus.
-- Custom dashboard for university/project tasks.
-- Custom wallpaper picker.
-- Custom power menu.
-- Notification popup and notification center.
-- Workspace overview with live window previews.
-- Volume, brightness, lock-state, and power-profile OSDs.
-- Media controls that only appear when media exists.
-- Shared popup manager through `ShellState.qml`.
-
-### Hyprland
-
-- Lua-based config generator.
-- Modular generated config files.
-- Custom keybinds.
-- Pywal-based colors.
-- Lock screen that follows wallpaper/theme colors.
-- Screenshot system.
-- Power profile toggle.
-- Wallpaper switching pipeline.
-- Default Hyprland fallback wallpaper disabled.
-
-### Removed/Replaced
-
-- Rofi app launcher replaced with Quickshell launcher.
-- Rofi clipboard picker replaced with Quickshell clipboard picker.
-- Rofi removed from active workflow.
-- Thunderbird removed.
-- Hyprland default splash/logo fallback disabled.
-
----
+The current workflow avoids Rofi for core desktop actions. The launcher, clipboard picker, dashboard, power menu, notification center, wallpaper picker, and overview are native Quickshell modules.
 
 ## Architecture
 
-The setup is split into two main parts:
+```text
+Hyprland keybind
+    -> qs ipc call ...
+        -> Quickshell IpcHandler
+            -> ShellState singleton
+                -> popup/module opens, closes, or runs an action
+```
+
+For generated config:
 
 ```text
-~/.config/quickshell/
-    Quickshell UI, modules, services, components, theme files
-
-~/.config/hypr/
-    Hyprland configs, Lua generator, scripts, generated files
+~/.config/hypr/lua/*.lua
+    -> ~/.config/hypr/generate.lua
+        -> ~/.config/hypr/generated/*.conf
+        -> ~/.config/hypr/hyprpaper.conf
+        -> ~/.config/hypr/hypridle.conf
+        -> ~/.config/hypr/hyprlock.conf
+        -> ~/.config/quickshell/data/dashboard.json
 ```
 
-The Hyprland side starts Quickshell, Hyprpaper, Hypridle, clipboard watchers, and the rest of the environment.
-
-Quickshell then provides the desktop UI and responds to IPC calls such as:
-
-```bash
-qs ipc call launcher toggle
-qs ipc call clipboard toggle
-qs ipc call clipboard deleteMode
-qs ipc call dashboard toggle
-qs ipc call powerMenu toggle
-qs ipc call wallpaperPicker toggle
-qs ipc call notificationCenter toggle
-qs ipc call shell toggleOverview
-```
-
----
-
-## Quickshell Structure
-
-Expected structure:
+For wallpaper/theme changes:
 
 ```text
-~/.config/quickshell/
-├── shell.qml
-├── components/
-│   ├── ActionButton.qml
-│   ├── AnimatedPopupCard.qml
-│   ├── Badge.qml
-│   ├── BarActionPill.qml
-│   ├── Card.qml
-│   ├── Divider.qml
-│   ├── HeadingText.qml
-│   ├── IconButton.qml
-│   ├── MetaText.qml
-│   ├── PopupBackdrop.qml
-│   ├── PopupPanel.qml
-│   ├── SearchBox.qml
-│   └── TitleText.qml
-├── services/
-│   ├── ShellState.qml
-│   ├── NotificationService.qml
-│   └── other service files
-├── theme/
-│   ├── Theme.qml
-│   └── WalTheme.qml
-├── modules/
-│   ├── bar/
-│   ├── clipboard/
-│   ├── dashboard/
-│   ├── launcher/
-│   ├── notifications/
-│   ├── osd/
-│   ├── overview/
-│   ├── powermenu/
-│   └── wallpaperPicker/
-└── data/
-    └── dashboard.json
+Quickshell wallpaper picker
+    -> ~/.config/hypr/scripts/wallpaper-picker.lua
+        -> hyprpaper wallpaper
+        -> wal -i
+        -> update-theme.lua
+        -> generate.lua
 ```
 
----
+## Repository Layout
 
-## Hyprland Structure
-
-Expected structure:
+### Quickshell
 
 ```text
-~/.config/hypr/
-├── hyprland.conf
-├── hyprpaper.conf
-├── hyprlock.conf
-├── hypridle.conf
-├── generate.lua
-├── lua/
-│   ├── appearance.lua
-│   ├── autostart.lua
-│   ├── dashboard.lua
-│   ├── env.lua
-│   ├── hypridle.lua
-│   ├── hyprlock.lua
-│   ├── hyprpaper.lua
-│   ├── input.lua
-│   ├── keybinds.lua
-│   ├── monitors.lua
-│   ├── variables.lua
-│   └── windowrules.lua
-├── generated/
-│   ├── appearance.conf
-│   ├── autostart.conf
-│   ├── env.conf
-│   ├── input.conf
-│   ├── keybinds.conf
-│   ├── monitors.conf
-│   ├── variables.conf
-│   └── windowrules.conf
-├── scripts/
-│   ├── dashboard-add.lua
-│   ├── dashboard-remove.lua
-│   ├── power-profile-toggle.lua
-│   ├── screenshot.lua
-│   ├── update-theme.lua
-│   └── wallpaper-picker.lua
-└── data/
-    └── dashboard.csv
+~/.config/quickshell
+|-- shell.qml
+|-- README.md
+|-- components/
+|-- data/
+|   `-- dashboard.json
+|-- modules/
+|   |-- bar/
+|   |-- clipboard/
+|   |-- controlCenter/
+|   |-- dashboard/
+|   |-- launcher/
+|   |-- notifications/
+|   |-- osd/
+|   |-- overview/
+|   |-- powermenu/
+|   `-- wallpaperPicker/
+|-- services/
+|-- theme/
+`-- widgets/
 ```
 
----
+### Hyprland
 
-## Core Quickshell Files
+```text
+~/.config/hypr
+|-- hyprland.conf
+|-- hypridle.conf
+|-- hyprlock.conf
+|-- hyprpaper.conf
+|-- generate.lua
+|-- data/
+|   `-- dashboard.csv
+|-- generated/
+|   |-- appearance.conf
+|   |-- autostart.conf
+|   |-- env.conf
+|   |-- input.conf
+|   |-- keybinds.conf
+|   |-- monitors.conf
+|   |-- variables.conf
+|   `-- windowrules.conf
+|-- lua/
+`-- scripts/
+```
 
-### `shell.qml`
+## Quickshell Entry Point
 
-Main Quickshell entry point.
+Main file:
 
-It loads all main modules:
+```text
+~/.config/quickshell/shell.qml
+```
+
+It loads:
 
 - `TopBar`
 - `PowerMenu`
-- OSD modules
+- `VolumeOSD`
+- `BrightnessOSD`
+- `LockOSD`
+- `PowerProfileOSD`
 - `NotificationPopup`
 - `NotificationCenter`
 - `WallpaperPicker`
-- `Dashboard`
 - `AppLauncher`
 - `ClipboardPicker`
 - `WorkspaceOverview`
 
-It also exposes the main shell IPC target:
-
-```qml
-IpcHandler {
-    target: "shell"
-}
-```
-
-Important IPC calls:
+It also exposes shell-level IPC:
 
 ```bash
 qs ipc call shell toggleOverview
@@ -242,226 +162,32 @@ qs ipc call shell closeOverview
 qs ipc call shell showPowerProfileOsd
 ```
 
----
+## Quickshell Modules
 
-## Shared Components
+### Bar
 
-### `Card.qml`
-
-The base visual container used across the setup.
-
-Used for:
-
-- Launcher panel
-- Power menu panel
-- Clipboard panel
-- Dashboard panel
-- Notification cards
-- Wallpaper cards
-- OSD containers
-
-It provides consistent rounded corners, borders, background color, and theme integration.
-
-### `AnimatedPopupCard.qml`
-
-Reusable animated popup card.
-
-Used for centered popups such as:
-
-- App launcher
-- Clipboard picker
-- Power menu
-
-It handles:
-
-- Open/close opacity.
-- Open/close scale.
-- Layer caching for smoother animations.
-- Shared popup color/border/radius settings.
-
-### `PopupBackdrop.qml`
-
-Reusable dimmed full-screen background.
-
-Used by:
-
-- Launcher
-- Clipboard picker
-- Power menu
-- Wallpaper picker
-- Workspace overview
-
-It provides:
-
-- Theme-consistent dim overlay.
-- Click outside to close.
-- Shared fade animation.
-
-### `SearchBox.qml`
-
-Reusable search input.
-
-Used by:
-
-- Launcher
-- Clipboard picker
-- Wallpaper picker
-
-It handles text input, focus, and `onAccepted` behavior.
-
-### `BarActionPill.qml`
-
-Reusable pill button for the top bar.
-
-Used by media actions and small bar controls.
-
-### Text Components
-
-- `HeadingText.qml`: large section titles.
-- `TitleText.qml`: item titles.
-- `MetaText.qml`: muted/subtitle text.
-- `Badge.qml`: small pill labels/counts.
-- `IconButton.qml`: icon-only buttons.
-- `ActionButton.qml`: text buttons.
-- `Divider.qml`: visual separator.
-
-These keep the UI visually consistent.
-
----
-
-## Services
-
-### `ShellState.qml`
-
-The global UI state manager.
-
-It controls which popup is open and prevents overlapping windows.
-
-Main state properties:
-
-```qml
-property bool launcherOpen
-property bool dashboardOpen
-property bool powerMenuOpen
-property bool notificationCenterOpen
-property bool wallpaperPickerOpen
-property bool clipboardOpen
-property bool overviewOpen
-```
-
-It provides open/close/toggle functions like:
-
-```qml
-openLauncher()
-closeLauncher()
-toggleLauncher()
-
-openClipboard()
-closeClipboard()
-toggleClipboard()
-
-openDashboard()
-closeDashboard()
-toggleDashboard()
-```
-
-The key behavior is that opening one main popup closes the others.
-
-### `NotificationService.qml`
-
-Manages notifications.
-
-Responsible for:
-
-- Receiving notifications.
-- Grouping notifications by app.
-- Expanding/collapsing groups.
-- Dismissing notifications.
-- Clearing app groups.
-- Clearing all notifications.
-
-Used by:
-
-- Notification popup.
-- Notification center.
-- Notification group cards.
-
----
-
-## Modules
-
-## Bar Module
-
-Folder:
+Path:
 
 ```text
-~/.config/quickshell/modules/bar/
+modules/bar/
 ```
 
-### `TopBar.qml`
+The bar is split into:
 
-Main top panel.
+- `LeftSection.qml`: workspaces and tray.
+- `CenterSection.qml`: clock and media controls.
+- `RightSection.qml`: CPU, RAM, network, audio, battery, keyboard, power.
+- `TopBar.qml`: panel window and dashboard attachment point.
 
-It hosts:
+### Launcher
 
-- Workspaces.
-- Current window title.
-- Media module.
-- Media previous/next controls.
-- System indicators.
-- Tray.
-- Dashboard/launcher controls depending on configuration.
-
-The dashboard component itself should not be instantiated inside `TopBar.qml`; it should only exist once in `shell.qml` to avoid duplicate IPC handlers.
-
-### `Media.qml`
-
-Displays current media information from MPRIS.
-
-Usually shows:
-
-- Track title.
-- Artist.
-- Play/pause state.
-
-### `MediaPrev.qml` and `MediaNext.qml`
-
-Previous and next media buttons.
-
-They should only be visible when an MPRIS player has a valid track loaded.
-
-This prevents the previous/next controls from always showing when nothing is playing.
-
-### `Tray.qml`
-
-System tray module.
-
-Displays tray icons when available.
-
----
-
-## Launcher Module
-
-Folder:
+Path:
 
 ```text
-~/.config/quickshell/modules/launcher/
+modules/launcher/
 ```
 
-### `AppLauncher.qml`
-
-Custom Quickshell app launcher replacing Rofi.
-
-Features:
-
-- Opens with `SUPER + D`.
-- Uses `DesktopEntries.applications.values`.
-- Search input.
-- Categories.
-- Keyboard navigation.
-- Click/Enter to launch apps.
-- Uses `PopupBackdrop` and `AnimatedPopupCard`.
-- Uses `ShellState.launcherOpen`.
+Native app launcher backed by `DesktopEntries`.
 
 IPC:
 
@@ -471,70 +197,22 @@ qs ipc call launcher open
 qs ipc call launcher close
 ```
 
-### `LauncherState.qml`
+Important files:
 
-State and filtering logic for the launcher.
+- `AppLauncher.qml`: panel UI and app launch behavior.
+- `LauncherState.qml`: app loading, search, categories, selection.
+- `LauncherList.qml`: result list.
+- `LauncherItem.qml`: individual app row/card.
 
-Responsible for:
+### Clipboard
 
-- Loading desktop entries.
-- Retrying initial load if entries are empty.
-- Filtering by search query.
-- Filtering by category.
-- Managing selected index.
-- Moving selection up/down.
-
-The retry logic fixes the bug where the first launcher open showed no apps.
-
-### `LauncherItem.qml`
-
-Visual app item.
-
-Displays:
-
-- App icon.
-- App name.
-- Metadata/comment.
-- Selected/hover states.
-
-### `LauncherHeader.qml`
-
-Top section of the launcher.
-
-Usually contains title, result count, and close button.
-
-### `LauncherCategories.qml`
-
-Category selector for filtering apps.
-
----
-
-## Clipboard Module
-
-Folder:
+Path:
 
 ```text
-~/.config/quickshell/modules/clipboard/
+modules/clipboard/
 ```
 
-### `ClipboardPicker.qml`
-
-Custom clipboard picker replacing Rofi clipboard menus.
-
-Modes:
-
-- Copy mode: `SUPER + V`
-- Delete mode: `SUPER + SHIFT + V`
-
-Features:
-
-- Search clipboard history.
-- Keyboard navigation.
-- Enter/click to copy selected item.
-- Delete selected item in delete mode.
-- Delete all option.
-- Uses shared `PopupBackdrop` and `AnimatedPopupCard`.
-- Uses `ShellState.clipboardOpen`.
+Native clipboard picker backed by `cliphist`.
 
 IPC:
 
@@ -542,68 +220,27 @@ IPC:
 qs ipc call clipboard toggle
 qs ipc call clipboard open
 qs ipc call clipboard close
+qs ipc call clipboard reload
 qs ipc call clipboard copyMode
 qs ipc call clipboard deleteMode
 qs ipc call clipboard deleteAll
-qs ipc call clipboard reload
 ```
 
-### `ClipboardState.qml`
+Important files:
 
-Clipboard logic.
+- `ClipboardPicker.qml`: UI and keyboard navigation.
+- `ClipboardState.qml`: list/copy/delete/wipe commands.
+- `ClipboardItem.qml`: row display.
 
-Responsible for:
+### Dashboard
 
-- Running `cliphist list`.
-- Filtering clipboard items.
-- Copying selected item using `cliphist decode | wl-copy`.
-- Deleting selected item using `cliphist delete`.
-- Wiping clipboard history using `cliphist wipe`.
-
-### `ClipboardItem.qml`
-
-Visual list item for clipboard history.
-
-Uses:
-
-- `Card`
-- `TitleText`
-- `MetaText`
-- `Badge`
-
----
-
-## Dashboard Module
-
-Folder:
+Path:
 
 ```text
-~/.config/quickshell/modules/dashboard/
+modules/dashboard/
 ```
 
-The dashboard is a custom university/project panel.
-
-It is designed to show:
-
-- University tasks.
-- Project deadlines.
-- Quiz dates.
-- Exam dates.
-- Other schedule entries.
-
-### `Dashboard.qml`
-
-Main dashboard popup.
-
-Features:
-
-- Slides down when opened.
-- Slides up smoothly when closed.
-- Uses manual cached animation for smoothness.
-- Uses `ShellState.dashboardOpen`.
-- Loads dashboard data from generated Quickshell data.
-- Has add item popup.
-- Has remove item actions.
+Task, project, and exam tracker.
 
 IPC:
 
@@ -611,126 +248,27 @@ IPC:
 qs ipc call dashboard toggle
 qs ipc call dashboard open
 qs ipc call dashboard close
+qs ipc call dashboard reload
 ```
 
-### `DashboardState.qml`
+Important files:
 
-Controls dashboard view state.
+- `Dashboard.qml`: popup window and orchestration.
+- `DashboardState.qml`: active category and filtering.
+- `DashboardActions.qml`: add/remove actions through Lua scripts.
+- `DashboardList.qml`: grouped item display.
+- `DashboardAddPopup.qml`: add-item form.
+- `UniCard.qml`: dashboard item card.
 
-Responsible for:
+### Notifications
 
-- Active category.
-- Add category.
-- Default type.
-- Filtering dashboard items.
-- Category titles.
-
-### `DashboardActions.qml`
-
-Connects UI actions to backend scripts.
-
-Used for:
-
-- Adding items.
-- Removing items.
-- Reloading dashboard data.
-
-### `DashboardData.qml`
-
-Loads generated dashboard JSON data.
-
-The Hyprland Lua generator creates:
+Path:
 
 ```text
-~/.config/quickshell/data/dashboard.json
+modules/notifications/
 ```
 
-from dashboard data.
-
-### Other Dashboard Components
-
-- `DashboardHeader.qml`
-- `DashboardTabs.qml`
-- `DashboardCategoryHeader.qml`
-- `DashboardList.qml`
-- `DashboardAddPopup.qml`
-
-These split the dashboard UI into reusable parts.
-
----
-
-## Power Menu Module
-
-Folder:
-
-```text
-~/.config/quickshell/modules/powermenu/
-```
-
-### `PowerMenu.qml`
-
-Custom full-screen power menu.
-
-Actions:
-
-- Lock
-- Suspend
-- Reboot
-- Shutdown
-
-Uses:
-
-- `ShellState.powerMenuOpen`
-- `PopupBackdrop`
-- `AnimatedPopupCard`
-
-IPC:
-
-```bash
-qs ipc call powerMenu toggle
-qs ipc call powerMenu open
-qs ipc call powerMenu close
-```
-
-### `PowerAction.qml`
-
-Individual power button.
-
-All power actions use the same visual style as the lock action, with no aggressive red danger styling.
-
----
-
-## Notification Module
-
-Folder:
-
-```text
-~/.config/quickshell/modules/notifications/
-```
-
-### `NotificationPopup.qml`
-
-Shows live notification popups.
-
-Behavior:
-
-- New notifications slide in.
-- Multiple notifications stack.
-- New notifications push old ones down.
-- Old notifications slide out individually.
-
-### `NotificationCenter.qml`
-
-Notification side panel.
-
-Features:
-
-- Opens with `SUPER + N`.
-- Groups notifications by app.
-- Clear all button.
-- Uses old styling preserved from the original design.
-- Uses `ShellState.notificationCenterOpen`.
-- Uses manual cached slide animation for smooth close behavior.
+Native notification popup and notification center.
 
 IPC:
 
@@ -741,41 +279,27 @@ qs ipc call notificationCenter close
 qs ipc call notificationCenter clear
 ```
 
-### `NotificationGroupCard.qml`
+Important files:
 
-A grouped notification card.
+- `NotificationPopup.qml`: transient toast stack.
+- `NotificationCenter.qml`: grouped notification panel.
+- `NotificationGroupCard.qml`: grouped notification UI.
+- `NotificationCard.qml`: notification rendering.
+- `services/NotificationService.qml`: notification server, snapshots, grouping, dismissal.
 
-Allows:
+### Wallpaper Picker
 
-- Expanding group.
-- Collapsing group.
-- Clearing group.
-- Dismissing individual notifications.
-
----
-
-## Wallpaper Picker Module
-
-Folder:
+Path:
 
 ```text
-~/.config/quickshell/modules/wallpaperPicker/
+modules/wallpaperPicker/
 ```
 
-### `WallpaperPicker.qml`
+Native wallpaper picker backed by:
 
-Custom bottom wallpaper picker.
-
-Features:
-
-- Opens with `SUPER + SHIFT + W`.
-- Slides from the bottom.
-- Search wallpapers.
-- Scroll through wallpapers.
-- Click to apply wallpaper.
-- Uses old styling preserved.
-- Uses `ShellState.wallpaperPickerOpen`.
-- Uses `PopupBackdrop`.
+```text
+~/.config/hypr/scripts/wallpaper-picker.lua
+```
 
 IPC:
 
@@ -786,114 +310,22 @@ qs ipc call wallpaperPicker close
 qs ipc call wallpaperPicker restore
 ```
 
-### `WallpaperActions.qml`
+Important files:
 
-Backend action bridge.
+- `WallpaperPicker.qml`: panel UI.
+- `WallpaperActions.qml`: list/apply/restore processes.
+- `WallpaperList.qml`: horizontal wallpaper list.
+- `WallpaperCard.qml`: wallpaper preview card.
 
-Responsible for:
+### Overview
 
-- Listing wallpapers.
-- Reading current wallpaper.
-- Applying selected wallpaper.
-- Restoring wallpaper at startup.
-
-### `WallpaperList.qml`
-
-Displays wallpaper cards.
-
-### `WallpaperHeader.qml`
-
-Top section of the wallpaper picker.
-
----
-
-## OSD Modules
-
-Folder:
+Path:
 
 ```text
-~/.config/quickshell/modules/osd/
+modules/overview/
 ```
 
-### `VolumeOSD.qml`
-
-Shows volume changes.
-
-Triggered by:
-
-```bash
-qs ipc call volumeOsd raise
-qs ipc call volumeOsd lower
-qs ipc call volumeOsd toggleMute
-```
-
-### `BrightnessOSD.qml`
-
-Shows brightness changes.
-
-Triggered by:
-
-```bash
-qs ipc call brightnessOsd raise
-qs ipc call brightnessOsd lower
-```
-
-### `LockOSD.qml`
-
-Shows lock-state changes such as Caps Lock and Num Lock.
-
-Triggered by:
-
-```bash
-qs ipc call lockOsd caps
-qs ipc call lockOsd num
-```
-
-### `PowerProfileOSD.qml`
-
-Shows the current power profile after toggling.
-
-Reads:
-
-```text
-~/.cache/power-profile-mode
-```
-
-or falls back to:
-
-```bash
-powerprofilesctl get
-```
-
-The OSD is triggered by:
-
-```bash
-qs ipc call shell showPowerProfileOsd
-```
-
----
-
-## Overview Module
-
-Folder:
-
-```text
-~/.config/quickshell/modules/overview/
-```
-
-### `WorkspaceOverview.qml`
-
-Full-screen workspace overview.
-
-Features:
-
-- Opens with `SUPER + TAB`.
-- Shows normal workspaces.
-- Shows special workspaces.
-- Uses `PopupBackdrop`.
-- Uses `ShellState.overviewOpen`.
-- Supports window focus from overview.
-- Supports drag behavior for windows.
+Workspace overview with live window previews and drag-to-workspace behavior.
 
 IPC:
 
@@ -901,807 +333,558 @@ IPC:
 qs ipc call shell toggleOverview
 ```
 
-### `WorkspacePreview.qml`
+Important files:
 
-Shows each workspace tile.
+- `WorkspaceOverview.qml`: fullscreen overview window.
+- `WorkspacePreview.qml`: workspace tile.
+- `WindowPreview.qml`: window preview and drag/focus behavior.
+- `OverviewConfig.qml`: pinned special workspace labels.
 
-Responsible for:
+### Power Menu
 
-- Workspace title.
-- Windows inside workspace.
-- Drop/focus interactions.
-
-### `WindowPreview.qml`
-
-Shows individual window preview inside overview.
-
-Uses Hyprland/Wayland screencopy when possible.
-
-It includes guards to avoid zero-size screencopy buffer warnings.
-
-### `OverviewConfig.qml`
-
-Configuration for pinned special workspaces and labels.
-
----
-
-# Hyprland Lua Generator
-
-The Hyprland config is generated from Lua modules.
-
-Main entry point:
+Path:
 
 ```text
-~/.config/hypr/generate.lua
+modules/powermenu/
 ```
 
-It generates:
+IPC:
+
+```bash
+qs ipc call powerMenu toggle
+qs ipc call powerMenu open
+qs ipc call powerMenu close
+```
+
+Actions:
+
+- Lock: `loginctl lock-session`
+- Suspend: `systemctl suspend`
+- Reboot: `systemctl reboot`
+- Shutdown: `systemctl poweroff`
+
+### OSDs
+
+Path:
 
 ```text
-~/.config/hypr/generated/env.conf
-~/.config/hypr/generated/variables.conf
-~/.config/hypr/generated/monitors.conf
-~/.config/hypr/generated/autostart.conf
-~/.config/hypr/generated/windowrules.conf
-~/.config/hypr/generated/appearance.conf
-~/.config/hypr/generated/keybinds.conf
-~/.config/hypr/generated/input.conf
+modules/osd/
+```
+
+IPC:
+
+```bash
+qs ipc call volumeOsd show
+qs ipc call volumeOsd raise
+qs ipc call volumeOsd lower
+qs ipc call volumeOsd toggleMute
+
+qs ipc call brightnessOsd show
+qs ipc call brightnessOsd raise
+qs ipc call brightnessOsd lower
+
+qs ipc call lockOsd caps
+qs ipc call lockOsd num
+
+qs ipc call powerProfileOsd show
+qs ipc call powerProfileOsd refresh
+```
+
+## Shared Components
+
+Path:
+
+```text
+components/
+```
+
+Common UI building blocks:
+
+- `ActionButton.qml`
+- `AnimatedPopupCard.qml`
+- `Badge.qml`
+- `BarActionPill.qml`
+- `BarInfoPill.qml`
+- `BarMediaPill.qml`
+- `BarPill.qml`
+- `Card.qml`
+- `Divider.qml`
+- `FormInput.qml`
+- `HeadingText.qml`
+- `IconButton.qml`
+- `MetaText.qml`
+- `PopupBackdrop.qml`
+- `SearchBox.qml`
+- `Slider.qml`
+- `TitleText.qml`
+
+## Services
+
+Path:
+
+```text
+services/
+```
+
+Singletons:
+
+- `ShellState.qml`: global popup, OSD, and overview state.
+- `NotificationService.qml`: notification server and grouping.
+- `DashboardData.qml`: reads generated dashboard JSON.
+
+Module file:
+
+```text
+services/qmldir
+```
+
+## Hyprland Config
+
+Main file:
+
+```text
+~/.config/hypr/hyprland.conf
+```
+
+It sources generated files:
+
+```text
+source = ~/.cache/wal/colors-hyprland.conf
+source = ~/.config/hypr/generated/env.conf
+source = ~/.config/hypr/generated/variables.conf
+source = ~/.config/hypr/generated/monitors.conf
+source = ~/.config/hypr/generated/autostart.conf
+source = ~/.config/hypr/generated/windowrules.conf
+source = ~/.config/hypr/generated/keybinds.conf
+source = ~/.config/hypr/generated/appearance.conf
+source = ~/.config/hypr/generated/input.conf
+```
+
+Do not manually edit generated files unless you are testing something temporarily. Make persistent changes in `~/.config/hypr/lua/`.
+
+## Lua Generator
+
+Main generator:
+
+```bash
+lua ~/.config/hypr/generate.lua
+```
+
+Source modules:
+
+```text
+~/.config/hypr/lua/appearance.lua
+~/.config/hypr/lua/autostart.lua
+~/.config/hypr/lua/dashboard.lua
+~/.config/hypr/lua/env.lua
+~/.config/hypr/lua/hypridle.lua
+~/.config/hypr/lua/hyprlock.lua
+~/.config/hypr/lua/hyprpaper.lua
+~/.config/hypr/lua/input.lua
+~/.config/hypr/lua/keybinds.lua
+~/.config/hypr/lua/monitors.lua
+~/.config/hypr/lua/variables.lua
+~/.config/hypr/lua/windowrules.lua
+```
+
+Generated outputs:
+
+```text
+~/.config/hypr/generated/*.conf
 ~/.config/hypr/hyprpaper.conf
 ~/.config/hypr/hypridle.conf
 ~/.config/hypr/hyprlock.conf
 ~/.config/quickshell/data/dashboard.json
 ```
 
-Run generation manually:
-
-```bash
-cd ~/.config/hypr
-lua generate.lua
-hyprctl reload
-```
-
----
-
-## Hyprland Config Files
-
-### `hyprland.conf`
-
-Main Hyprland entry file.
-
-It sources:
-
-- Pywal colors.
-- Environment config.
-- Variables.
-- Monitor config.
-- Autostart config.
-- Window rules.
-- Keybinds.
-- Appearance config.
-- Input config.
-
-### `lua/env.lua`
-
-Generates environment variables.
-
-Used for:
-
-- Wayland session settings.
-- Nvidia variables.
-- Browser Wayland support.
-
-### `lua/variables.lua`
-
-Defines reusable command variables such as:
-
-- Terminal.
-- Menu command.
-- Screenshot script.
-- Power profile script.
-- Wallpaper picker command.
-
-### `lua/monitors.lua`
-
-Generates monitor layout.
-
-Current basic behavior:
-
-```conf
-monitor = ,preferred,auto,1
-```
-
-### `lua/autostart.lua`
-
-Starts background services.
-
-Important services:
-
-- `hypridle`
-- `hyprpaper`
-- `quickshell`
-- `wl-paste --type text --watch cliphist store`
-- `wl-paste --type image --watch cliphist store`
-
-### `lua/windowrules.lua`
-
-Sets workspace rules for apps.
-
-Examples:
-
-- VS Code to workspace 4.
-- Discord to workspace 5.
-- Spotify to special workspace `music`.
-
-### `lua/keybinds.lua`
-
-Generates all keybinds.
-
-Important keybinds include:
-
-```text
-SUPER + T             terminal
-SUPER + B             Brave
-SUPER + D             Quickshell launcher
-SUPER + TAB           workspace overview
-SUPER + E             Files
-SUPER + L             lock session
-SUPER + S             Spotify
-SUPER + C             VS Code
-SUPER + ESC           power menu
-SUPER + SHIFT + W     wallpaper picker
-SUPER + V             clipboard copy mode
-SUPER + SHIFT + V     clipboard delete mode
-SUPER + N             notification center
-SUPER + P             power profile toggle
-```
-
-### `lua/appearance.lua`
-
-Generates visual settings.
-
-Controls:
-
-- Gaps.
-- Borders.
-- Blur.
-- Window opacity.
-- Animations.
-- Hyprland fallback background.
-
-It disables Hyprland default fallback visuals:
-
-```conf
-disable_hyprland_logo = yes
-disable_splash_rendering = yes
-force_default_wallpaper = 0
-background_color = rgb(000000)
-```
-
-This prevents the original Hyprland wallpaper/logo from appearing when no wallpaper daemon is running.
-
-### `lua/input.lua`
-
-Generates keyboard and touchpad input settings.
-
-Includes:
-
-```conf
-kb_layout = us,ara
-natural_scroll = true
-```
-
-### `lua/hyprpaper.lua`
-
-Generates Hyprpaper config.
-
-Controls:
-
-- `ipc`
-- `splash`
-- preloaded wallpapers
-- startup wallpaper
-
-### `lua/hyprlock.lua`
-
-Generates Hyprlock config.
-
-The lock screen follows wallpaper/theme colors.
-
-### `lua/hypridle.lua`
-
-Generates Hypridle config.
-
-Controls:
-
-- Lock after idle.
-- DPMS off after idle.
-- Suspend after longer idle.
-
-### `lua/dashboard.lua`
-
-Generates dashboard JSON for Quickshell.
-
-Output:
-
-```text
-~/.config/quickshell/data/dashboard.json
-```
-
----
-
 ## Scripts
 
-Folder:
+Path:
 
 ```text
 ~/.config/hypr/scripts/
 ```
 
-### `wallpaper-picker.lua`
+Active scripts:
 
-Backend script for wallpaper switching.
+- `dashboard-add.lua`: appends dashboard item data and regenerates.
+- `dashboard-remove.lua`: removes dashboard item data and regenerates.
+- `power-profile-toggle.lua`: cycles power profile and shows Quickshell OSD.
+- `screenshot.lua`: screenshot modes for full, region, copy, edit, and window.
+- `update-theme.lua`: converts Pywal colors into Quickshell and GTK/Rofi theme files.
+- `wallpaper-picker.lua`: applies wallpaper, runs Pywal, updates theme, regenerates Hypr config.
 
-Flow:
+## IPC Commands
 
-1. Validate selected wallpaper.
-2. Save selected path to cache.
-3. Copy selected wallpaper to `~/Pictures/wallpaper.png`.
-4. Apply wallpaper through Hyprpaper IPC.
-5. Run Pywal.
-6. Update theme files.
-7. Regenerate Hyprland/Hyprlock configs.
-
-Important: this script currently uses:
+Common commands:
 
 ```bash
-hyprctl hyprpaper wallpaper "eDP-1,/path/to/wallpaper"
+qs ipc call launcher toggle
+qs ipc call clipboard toggle
+qs ipc call clipboard deleteMode
+qs ipc call dashboard toggle
+qs ipc call powerMenu toggle
+qs ipc call wallpaperPicker toggle
+qs ipc call notificationCenter toggle
+qs ipc call shell toggleOverview
 ```
 
-without `reload` and without `,cover`, because the installed Hyprpaper version rejects those IPC forms.
+OSD commands:
 
-### `update-theme.lua`
-
-Generates theme files from Pywal colors.
-
-Outputs include:
-
-- GTK theme CSS.
-- Quickshell `WalTheme.qml`.
-
-After removing Rofi from the active workflow, Rofi theme generation is no longer needed.
-
-### `power-profile-toggle.lua`
-
-Cycles power profile using `powerprofilesctl`.
-
-Cycle:
-
-```text
-balanced -> power-saver -> performance -> balanced
+```bash
+qs ipc call volumeOsd raise
+qs ipc call volumeOsd lower
+qs ipc call volumeOsd toggleMute
+qs ipc call brightnessOsd raise
+qs ipc call brightnessOsd lower
+qs ipc call lockOsd caps
+qs ipc call lockOsd num
+qs ipc call shell showPowerProfileOsd
 ```
-
-Writes current profile to:
-
-```text
-~/.cache/power-profile-mode
-```
-
-Then triggers Quickshell OSD.
-
-### `screenshot.lua`
-
-Screenshot helper.
-
-Modes:
-
-- full
-- region
-- copy
-- edit
-- window
-
-Uses tools such as:
-
-- `grim`
-- `slurp`
-- `wl-copy`
-- `swappy`
-- `jq`
-
-### `dashboard-add.lua`
-
-Adds dashboard items to the dashboard data source.
-
-### `dashboard-remove.lua`
-
-Removes dashboard items from the dashboard data source.
-
----
 
 ## Keybinds
 
-Common keybinds:
+Source:
 
 ```text
-SUPER + T             Open terminal
-SUPER + B             Open Brave
-SUPER + D             Open Quickshell launcher
-SUPER + TAB           Open workspace overview
-SUPER + E             Open Files
-SUPER + L             Lock session
-SUPER + S             Open Spotify
-SUPER + C             Open VS Code
-SUPER + ESC           Open power menu
-SUPER + SHIFT + W     Open wallpaper picker
-SUPER + V             Open clipboard copy mode
-SUPER + SHIFT + V     Open clipboard delete mode
-SUPER + N             Open notification center
-SUPER + P             Toggle power profile
-PRINT                 Full screenshot
-SHIFT + PRINT         Region screenshot
-CTRL + PRINT          Copy region screenshot
-ALT + PRINT           Window screenshot
-SUPER + PRINT         Edit screenshot in Swappy
+~/.config/hypr/lua/keybinds.lua
 ```
 
-Media/system keys:
+Generated:
 
 ```text
-XF86AudioRaiseVolume      Volume up OSD
-XF86AudioLowerVolume      Volume down OSD
-XF86AudioMute             Toggle mute OSD
-XF86MonBrightnessUp       Brightness up OSD
-XF86MonBrightnessDown     Brightness down OSD
-XF86AudioPlay             Play/pause
-XF86AudioNext             Next track
-XF86AudioPrev             Previous track
+~/.config/hypr/generated/keybinds.conf
 ```
 
----
+Current primary bindings:
 
-## Theme System
+| Key | Action |
+| --- | --- |
+| `SUPER + T` | Open terminal |
+| `SUPER + B` | Open browser |
+| `SUPER + D` | Toggle app launcher |
+| `SUPER + TAB` | Toggle workspace overview |
+| `SUPER + E` | Open file manager |
+| `SUPER + L` | Lock session |
+| `SUPER + ESCAPE` | Toggle power menu |
+| `SUPER + Q` | Close active window |
+| `SUPER + F` | Toggle fullscreen |
+| `SUPER + X` | Toggle floating |
+| `SUPER + M` | Exit Hyprland |
+| `SUPER + 1..9` | Switch workspace |
+| `SUPER + SHIFT + 1..9` | Move window to workspace |
+| `SUPER + Left/Right` | Move to previous/next workspace |
+| `Print` | Full screenshot |
+| `SHIFT + Print` | Region screenshot |
+| `CTRL + Print` | Region screenshot to clipboard |
+| `ALT + Print` | Active window screenshot |
+| `SUPER + Print` | Screenshot editor |
+| `SUPER + V` | Clipboard picker |
+| `SUPER + SHIFT + V` | Clipboard delete mode |
+| `SUPER + ALT + V` | Clear clipboard history |
+| `SUPER + N` | Notification center |
+| `SUPER + A` | Dashboard |
+| `SUPER + Space` | Switch keyboard layout |
+| `SUPER + P` | Cycle power profile |
+| `SUPER + SHIFT + W` | Wallpaper picker |
 
-Theme flow:
+Media and hardware keys:
+
+| Key | Action |
+| --- | --- |
+| `XF86AudioRaiseVolume` | Raise volume and show OSD |
+| `XF86AudioLowerVolume` | Lower volume and show OSD |
+| `XF86AudioMute` | Toggle mute and show OSD |
+| `XF86MonBrightnessUp` | Raise brightness and show OSD |
+| `XF86MonBrightnessDown` | Lower brightness and show OSD |
+| `XF86AudioPlay` | Play/pause media |
+| `XF86AudioNext` | Next track |
+| `XF86AudioPrev` | Previous track |
+| `Caps_Lock` | Show Caps Lock OSD |
+| `Num_Lock` | Show Num Lock OSD |
+
+## Data Flow
+
+### Dashboard
+
+Source data:
 
 ```text
-Wallpaper selected
-      ↓
-wal -i wallpaper
-      ↓
-~/.cache/wal/colors.sh
-      ↓
-update-theme.lua
-      ↓
-Quickshell WalTheme.qml
-      ↓
-Hyprland/Hyprlock regenerated
+~/.config/hypr/data/dashboard.csv
 ```
 
-Important theme files:
-
-```text
-~/.config/quickshell/theme/Theme.qml
-~/.config/quickshell/theme/WalTheme.qml
-~/.config/wal/theme.css
-```
-
-### `Theme.qml`
-
-Static design tokens:
-
-- margins
-- bar height
-- radius
-- font sizes
-- pill colors
-
-### `WalTheme.qml`
-
-Generated dynamic colors from the current wallpaper.
-
-Used by Quickshell components and modules.
-
-Contains:
-
-- background
-- foreground
-- surface
-- border
-- accent
-- urgent
-- alpha variants
-
----
-
-## Wallpaper System
-
-Wallpaper picker flow:
-
-```text
-Quickshell WallpaperPicker
-      ↓
-WallpaperActions.qml
-      ↓
-~/.config/hypr/scripts/wallpaper-picker.lua
-      ↓
-Hyprpaper IPC + Pywal + theme regeneration
-```
-
-The current wallpaper path is stored in:
-
-```text
-~/.cache/current-wallpaper
-```
-
-The stable copied wallpaper is:
-
-```text
-~/Pictures/wallpaper.png
-```
-
-This stable path is useful for:
-
-- startup wallpaper
-- lock screen background
-- generated configs
-
-Hyprland fallback was changed to black so the original default Hyprland wallpaper does not show if Hyprpaper is killed.
-
----
-
-## Clipboard System
-
-Clipboard is powered by:
-
-```bash
-cliphist
-wl-paste
-wl-copy
-```
-
-Autostart watchers:
-
-```bash
-wl-paste --type text --watch cliphist store
-wl-paste --type image --watch cliphist store
-```
-
-Main commands:
-
-```bash
-qs ipc call clipboard toggle
-qs ipc call clipboard deleteMode
-qs ipc call clipboard deleteAll
-```
-
-Modes:
-
-- Copy mode: copy selected item into clipboard.
-- Delete mode: delete selected item from history.
-- Delete all: wipe clipboard history.
-
----
-
-## Dashboard System
-
-Dashboard data is generated into:
+Generated Quickshell data:
 
 ```text
 ~/.config/quickshell/data/dashboard.json
 ```
 
-It can display categories such as:
-
-- University
-- Projects
-- Quizzes
-- Exams
-- Deadlines
-
-Backend scripts manage adding/removing items.
-
-The dashboard uses a custom manual slide animation because that gave the smoothest close behavior.
-
----
-
-## Notification System
-
-Notification behavior:
-
-- Notification popups stack correctly.
-- New notification pushes existing notification down.
-- Notifications do not all restart their animations when a new one arrives.
-- Notification center keeps the old preferred style.
-- Notification center uses manual cached slide animation for smooth closing.
-
----
-
-## Power Profile OSD
-
-The power profile script:
+Add/remove flow:
 
 ```text
-~/.config/hypr/scripts/power-profile-toggle.lua
+Dashboard UI
+    -> DashboardActions.qml
+        -> dashboard-add.lua or dashboard-remove.lua
+            -> dashboard.csv
+            -> generate.lua
+            -> dashboard.json
+            -> DashboardData.qml reload
 ```
 
-writes the current mode to:
+### Notifications
 
 ```text
-~/.cache/power-profile-mode
+NotificationServer
+    -> NotificationService.qml
+        -> NotificationPopup.qml
+        -> NotificationCenter.qml
 ```
 
-Then triggers:
+Notifications are snapshotted before display so popups can outlive the raw notification object safely.
+
+### Clipboard
+
+```text
+wl-paste --watch cliphist store
+    -> cliphist list
+    -> ClipboardState.qml
+    -> cliphist decode | wl-copy
+```
+
+## Theme And Wallpaper Flow
+
+Wallpaper picker module:
+
+```text
+modules/wallpaperPicker/
+```
+
+Backend script:
+
+```text
+~/.config/hypr/scripts/wallpaper-picker.lua
+```
+
+Theme updater:
+
+```text
+~/.config/hypr/scripts/update-theme.lua
+```
+
+Generated Quickshell theme:
+
+```text
+~/.config/quickshell/theme/WalTheme.qml
+```
+
+Wallpaper flow:
+
+```text
+Select wallpaper
+    -> write ~/.cache/current-wallpaper
+    -> copy to ~/Pictures/wallpaper.png
+    -> apply through hyprpaper IPC
+    -> run wal -i
+    -> regenerate WalTheme.qml
+    -> regenerate Hyprland config
+```
+
+## Validation
+
+Check Quickshell loads:
 
 ```bash
-qs ipc call shell showPowerProfileOsd
+timeout 4s quickshell --path ~/.config/quickshell/shell.qml --no-color
 ```
 
-The OSD reads the cached mode and displays:
+Check running Quickshell instances:
 
-- Performance
-- Balanced
-- Power Saver
+```bash
+qs list
+```
 
----
+Check Hyprland config errors:
 
-## Lock Screen
+```bash
+hyprctl configerrors
+```
 
-Hyprlock config is generated from Lua.
+Regenerate Hyprland and dashboard data:
 
-Features:
+```bash
+lua ~/.config/hypr/generate.lua
+```
 
-- Wallpaper background.
-- Blur.
-- Transparent overlay.
-- Large time display.
-- Date display.
-- Username label.
-- Centered password input.
-- Colors generated from Pywal.
+Reload Hyprland:
 
-Hypridle triggers lock/suspend behavior.
+```bash
+hyprctl reload
+```
 
----
+Check Lua syntax:
+
+```bash
+find ~/.config/hypr -path ~/.config/hypr/old-backup -prune -o -name '*.lua' -print -exec luac -p {} \;
+```
+
+Check Markdown and whitespace in this repo:
+
+```bash
+git diff --check
+```
 
 ## Troubleshooting
 
-### Quickshell IPC target not found
+### Quickshell IPC Fails
 
-Check whether the module is loaded in `shell.qml`:
-
-```bash
-grep -n "ClipboardPicker\|AppLauncher\|Dashboard\|WallpaperPicker" ~/.config/quickshell/shell.qml
-```
-
-Restart Quickshell hard:
+Check whether Quickshell is running:
 
 ```bash
-pkill -9 quickshell
-sleep 1
-quickshell
-```
-
-Check logs:
-
-```bash
-qs log -f
-```
-
-### Duplicate IPC handler warning
-
-Example:
-
-```text
-Handler was registered but will not be used because another handler is registered for target dashboard
-```
-
-This means the same module was loaded twice.
-
-Find duplicates:
-
-```bash
-grep -R -n "Dashboard {" ~/.config/quickshell
-```
-
-Only one dashboard instance should exist, normally in `shell.qml`.
-
-### Launcher empty on first open
-
-Fixed by retrying `DesktopEntries.applications.values` in `LauncherState.qml`.
-
-If it comes back, restart Quickshell:
-
-```bash
-pkill -9 quickshell
-sleep 1
-quickshell
-```
-
-### Hyprpaper invalid request
-
-This setup uses:
-
-```bash
-hyprctl hyprpaper wallpaper "eDP-1,/path/to/wallpaper"
-```
-
-Do not use:
-
-```bash
-hyprctl hyprpaper reload ...
-hyprctl hyprpaper preload ...
-...,cover
-```
-
-because the installed Hyprpaper version rejected those IPC requests.
-
-### Original Hyprland wallpaper appears
-
-The fallback is disabled through:
-
-```conf
-disable_hyprland_logo = yes
-disable_splash_rendering = yes
-force_default_wallpaper = 0
-background_color = rgb(000000)
-```
-
-Generated by `lua/appearance.lua`.
-
-### Zero-sized buffer warnings in overview
-
-Warnings like:
-
-```text
-Cannot create zero-sized buffer
-Backbuffer creation failed for screencopy
-```
-
-come from screencopy window previews.
-
-`WindowPreview.qml` should guard screencopy so it only runs when:
-
-- overview is open
-- window exists
-- capture handle exists
-- preview size is greater than 1x1
-
----
-
-## Backup Commands
-
-Create full stable backup:
-
-```bash
-mkdir -p ~/.config/quickshell-backups ~/.config/hypr-backups
-
-cp -r ~/.config/quickshell \
-  ~/.config/quickshell-backups/quickshell-stable-$(date +%F-%H-%M)
-
-cp -r ~/.config/hypr \
-  ~/.config/hypr-backups/hypr-stable-$(date +%F-%H-%M)
-```
-
-Regenerate Hyprland config:
-
-```bash
-cd ~/.config/hypr
-lua generate.lua
-hyprctl reload
+qs list
 ```
 
 Restart Quickshell:
 
 ```bash
-pkill -9 quickshell
-sleep 1
+qs kill
 quickshell
 ```
 
-Restart Hyprpaper:
+### Hyprland Reports Config Errors
+
+Run:
 
 ```bash
-pkill hyprpaper
-hyprpaper >/dev/null 2>&1 &
+hyprctl configerrors
 ```
 
----
+If the error is in `generated/*.conf`, edit the corresponding Lua file in `~/.config/hypr/lua/`, then regenerate:
 
-## Future Improvements
+```bash
+lua ~/.config/hypr/generate.lua
+hyprctl reload
+```
 
-Possible next improvements:
+### Wallpaper Does Not Apply
 
-- Add confirmation before clipboard `Delete all`.
-- Componentize shared scrollable list frame.
-- Add richer launcher categories.
-- Add app pinning/favorites to launcher.
-- Add dashboard editing UI without touching raw data files.
-- Add wallpaper transition support using `swww` if smoother live switching is desired.
-- Add notification search/filtering.
-- Add settings panel for theme, blur, opacity, and animations.
-- Add proper README screenshots.
-- Add install script for dependencies.
+Check:
 
----
+```bash
+pgrep -x hyprpaper
+cat ~/.cache/current-wallpaper
+hyprctl monitors -j
+```
 
-## Dependencies
+Run the backend directly:
 
-Main dependencies used by this setup:
+```bash
+~/.config/hypr/scripts/wallpaper-picker.lua /path/to/wallpaper.png
+```
+
+Log file:
 
 ```text
-hyprland
-quickshell
-hyprpaper
-hyprlock
-hypridle
-pywal / wal
-cliphist
-wl-clipboard
-playerctl
+~/.cache/wallpaper-picker.log
+```
+
+### Dashboard Does Not Update
+
+Regenerate data:
+
+```bash
+lua ~/.config/hypr/generate.lua
+qs ipc call dashboard reload
+```
+
+Check source data:
+
+```text
+~/.config/hypr/data/dashboard.csv
+```
+
+Check generated data:
+
+```text
+~/.config/quickshell/data/dashboard.json
+```
+
+### Clipboard Picker Is Empty
+
+Check that cliphist watchers are running from Hyprland autostart:
+
+```bash
+pgrep -af 'wl-paste.*cliphist'
+cliphist list
+```
+
+### Power Profile OSD Does Not Show
+
+Check:
+
+```bash
+powerprofilesctl get
+qs ipc call shell showPowerProfileOsd
+```
+
+Script log:
+
+```text
+~/.cache/power-profile-toggle.log
+```
+
+### Screenshots Fail
+
+Required tools:
+
+```text
 grim
 slurp
-swappy
+wl-copy
 jq
-kitty
-brave-browser
-nautilus
-spotify
-powerprofilesctl
+notify-send
+swappy
 ```
 
-Optional or app-specific:
+Run:
 
-```text
-VS Code
-Discord
-OBS
-Inkscape
-VLC
-MPV
-Bluetooth tools
-GNOME Settings tools
+```bash
+~/.config/hypr/scripts/screenshot.lua full
+~/.config/hypr/scripts/screenshot.lua region
+~/.config/hypr/scripts/screenshot.lua copy
+~/.config/hypr/scripts/screenshot.lua window
+~/.config/hypr/scripts/screenshot.lua edit
 ```
 
----
+## Maintenance Notes
 
-## Notes
+- Edit Quickshell UI in `~/.config/quickshell`.
+- Edit Hyprland source config in `~/.config/hypr/lua`.
+- Regenerate Hyprland config after Lua source changes.
+- Avoid editing `~/.config/hypr/generated/*.conf` directly.
+- Keep active scripts in `~/.config/hypr/scripts`.
+- Old backup files under `~/.config/hypr/old-backup` are reference material, not active config.
+- The Quickshell repo may show deleted root-level Lua files; the active Lua scripts are in `~/.config/hypr/scripts`.
 
-This setup is intentionally modular. When editing it, prefer changing the source Lua/QML files rather than generated files.
+## Recent Cleanup
 
-For Hyprland:
+Recent maintenance included:
 
-```text
-Edit:      ~/.config/hypr/lua/*.lua
-Generate:  ~/.config/hypr/generated/*.conf
+- Centralized media player state in `widgets/MediaPlayerState.qml`.
+- Fixed notification group expansion duplication.
+- Rebuilt notification groups when tracked notification count changes.
+- Allowed overview to show more than five normal workspaces.
+- Made wallpaper picker paths use `$HOME`.
+- Standardized `services/qmldir`.
+- Improved Hypr Lua path handling.
+- Added screenshot command success checks.
+- Made wallpaper script detect the active monitor.
+- Quoted the `qs` path in the power profile script.
+
+## Quick Recovery Commands
+
+```bash
+lua ~/.config/hypr/generate.lua
+hyprctl configerrors
+hyprctl reload
+timeout 4s quickshell --path ~/.config/quickshell/shell.qml --no-color
 ```
-
-For Quickshell:
-
-```text
-Edit: ~/.config/quickshell/**/*.qml
-```
-
-The generated files are outputs, not the main source of truth.
-
----
-
-## Current Project Status
-
-Stable completed systems:
-
-- Popup manager.
-- Shared popup backdrop.
-- Shared animated popup card.
-- App launcher.
-- Clipboard picker.
-- Dashboard.
-- Power menu.
-- Notification center.
-- Wallpaper picker.
-- Workspace overview.
-- Power profile OSD.
-- Wallpaper/theme pipeline.
-- Rofi removal.
-- Hyprland fallback wallpaper removal.
-
-This is now a complete custom Hyprland + Quickshell desktop environment.
