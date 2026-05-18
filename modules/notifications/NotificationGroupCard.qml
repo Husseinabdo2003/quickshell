@@ -40,8 +40,8 @@ Item {
         if (!root.items)
             return result
 
-        const latestKey = root.latest && root.latest.key
-            ? String(root.latest.key)
+        const latestId = root.latest && root.latest.id
+            ? String(root.latest.id)
             : ""
 
         for (let i = 0; i < root.items.length; i++) {
@@ -50,9 +50,9 @@ Item {
             if (!item)
                 continue
 
-            const key = item.key ? String(item.key) : ""
+            const id = item.id ? String(item.id) : ""
 
-            if (latestKey.length > 0 && key === latestKey)
+            if (latestId.length > 0 && id === latestId)
                 continue
 
             result.push(item)

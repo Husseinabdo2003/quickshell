@@ -8,28 +8,28 @@ This configuration replaces the usual external menu workflow with native Quicksh
 
 ## Table of Contents
 
-- [Overview](../../Downloads/README.md#overview)
-- [Main Features](../../Downloads/README.md#main-features)
-- [Architecture](../../Downloads/README.md#architecture)
-- [Quickshell Structure](../../Downloads/README.md#quickshell-structure)
-- [Hyprland Structure](../../Downloads/README.md#hyprland-structure)
-- [Core Quickshell Files](../../Downloads/README.md#core-quickshell-files)
-- [Shared Components](../../Downloads/README.md#shared-components)
-- [Services](../../Downloads/README.md#services)
-- [Modules](../../Downloads/README.md#modules)
-- [Hyprland Lua Generator](../../Downloads/README.md#hyprland-lua-generator)
-- [Scripts](../../Downloads/README.md#scripts)
-- [Keybinds](../../Downloads/README.md#keybinds)
-- [Theme System](../../Downloads/README.md#theme-system)
-- [Wallpaper System](../../Downloads/README.md#wallpaper-system)
-- [Clipboard System](../../Downloads/README.md#clipboard-system)
-- [Dashboard System](../../Downloads/README.md#dashboard-system)
-- [Notification System](../../Downloads/README.md#notification-system)
-- [Power Profile OSD](../../Downloads/README.md#power-profile-osd)
-- [Lock Screen](../../Downloads/README.md#lock-screen)
-- [Troubleshooting](../../Downloads/README.md#troubleshooting)
-- [Backup Commands](../../Downloads/README.md#backup-commands)
-- [Future Improvements](../../Downloads/README.md#future-improvements)
+- [Overview](#overview)
+- [Main Features](#main-features)
+- [Architecture](#architecture)
+- [Quickshell Structure](#quickshell-structure)
+- [Hyprland Structure](#hyprland-structure)
+- [Core Quickshell Files](#core-quickshell-files)
+- [Shared Components](#shared-components)
+- [Services](#services)
+- [Modules](#modules)
+- [Hyprland Lua Generator](#hyprland-lua-generator)
+- [Scripts](#scripts)
+- [Keybinds](#keybinds)
+- [Theme System](#theme-system)
+- [Wallpaper System](#wallpaper-system)
+- [Clipboard System](#clipboard-system)
+- [Dashboard System](#dashboard-system)
+- [Notification System](#notification-system)
+- [Power Profile OSD](#power-profile-osd)
+- [Lock Screen](#lock-screen)
+- [Troubleshooting](#troubleshooting)
+- [Backup Commands](#backup-commands)
+- [Future Improvements](#future-improvements)
 
 ---
 
@@ -1705,4 +1705,3 @@ Stable completed systems:
 - Hyprland fallback wallpaper removal.
 
 This is now a complete custom Hyprland + Quickshell desktop environment.
-

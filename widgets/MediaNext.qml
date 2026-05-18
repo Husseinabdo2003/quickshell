@@ -1,51 +1,14 @@
 import QtQuick
-import Quickshell.Services.Mpris
-
 import "../components"
 
 BarActionPill {
     id: root
 
-    function bestPlayer() {
-        const players = Mpris.players.values
-
-        if (!players || players.length === 0)
-            return null
-
-        for (let i = 0; i < players.length; i++) {
-            const p = players[i]
-
-            if (
-                p
-                && p.isPlaying
-                && p.trackTitle
-                && String(p.trackTitle).length > 0
-            ) {
-                return p
-            }
-        }
-
-        for (let i = 0; i < players.length; i++) {
-            const p = players[i]
-
-            if (
-                p
-                && p.trackTitle
-                && String(p.trackTitle).length > 0
-            ) {
-                return p
-            }
-        }
-
-        return null
+    MediaPlayerState {
+        id: mediaState
     }
 
-    property var player: bestPlayer()
-
-    visible: player !== null
-        && player.trackTitle
-        && String(player.trackTitle).length > 0
-        && player.canGoNext
+    visible: mediaState.hasTrackTitle && mediaState.player.canGoNext
 
     icon: ""
 
@@ -53,7 +16,7 @@ BarActionPill {
     iconSize: 12
 
     onClicked: {
-        if (root.player && root.player.canGoNext)
-            root.player.next()
+        if (mediaState.hasPlayer && mediaState.player.canGoNext)
+            mediaState.player.next()
     }
 }

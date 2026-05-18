@@ -54,7 +54,14 @@ Scope {
         exclusiveZone: 0
         focusable: true
 
-        property int columns: 5
+        property int minimumColumns: 5
+        property int columns: Math.max(
+            minimumColumns,
+            Math.max(
+                normalWorkspaceNames().length,
+                specialWorkspaceNames().length
+            )
+        )
 
         property int panelMaxWidth: 1508
         property real panelWidthRatio: 0.82
@@ -121,7 +128,7 @@ Scope {
                         names.push(name)
                 })
 
-            return names.slice(0, columns)
+            return names
         }
 
         function specialWorkspaceNames() {
@@ -135,7 +142,7 @@ Scope {
                         names.push(name)
                 })
 
-            return names.slice(0, columns)
+            return names
         }
 
         function specialWorkspaceLabel(name) {

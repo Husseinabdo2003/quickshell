@@ -122,8 +122,14 @@ PanelWindow {
         }
 
         try {
-            if (app.command && String(app.command).trim().length > 0) {
-                Quickshell.execDetached(String(app.command))
+            const command = root.cleanDesktopCommand(app.command)
+
+            if (command.length > 0) {
+                Quickshell.execDetached([
+                    "bash",
+                    "-lc",
+                    command
+                ])
                 return
             }
         } catch (error) {
@@ -132,6 +138,18 @@ PanelWindow {
 
         root.launchingApp = false
         launchResetTimer.stop()
+    }
+
+    function cleanDesktopCommand(command) {
+        try {
+            return String(command || "")
+                .replace(/%%/g, "\u0000")
+                .replace(/%[fFuUick]/g, "")
+                .replace(/\u0000/g, "%")
+                .trim()
+        } catch (error) {
+            return ""
+        }
     }
 
     function launchSelected() {

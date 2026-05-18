@@ -19,6 +19,11 @@ Item {
     property var dismissingIds: ({})
 
     readonly property var notifications: server.trackedNotifications.values
+    readonly property int notificationCount: notifications.length
+
+    onNotificationCountChanged: {
+        root.rebuildGroups()
+    }
 
     NotificationServer {
         id: server

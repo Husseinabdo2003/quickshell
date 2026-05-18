@@ -13,73 +13,45 @@ Card {
 
     property bool hasWindow: window !== null && window !== undefined
 
-    property string appName: {
-        if (!hasWindow)
-            return "Window"
+    property bool dragStarted: false
+    property bool moved: false
 
-        if (window.appId && String(window.appId).length > 0)
-            return String(window.appId)
+    property real startX: 0
+    property real startY: 0
 
-        if (window.class && String(window.class).length > 0)
-            return String(window.class)
+    readonly property int minimumPreviewWidth: 24
+    readonly property int minimumPreviewHeight: 18
 
-        if (window.initialClass && String(window.initialClass).length > 0)
-            return String(window.initialClass)
+    property string appName: root.safeAppName()
+    property string windowTitle: root.safeTitle()
+    property string workspaceName: root.safeWorkspaceName()
 
-        return "Window"
-    }
-
-    property string windowTitle: {
-        if (!hasWindow)
-            return "Untitled"
-
-        return window.title && String(window.title).length > 0
-            ? String(window.title)
-            : "Untitled"
-    }
-
-    property string workspaceName: {
-        if (!hasWindow || !window.workspace)
-            return ""
-
-        return String(window.workspace.name)
-    }
-
-    property bool isDragging: dragArea.drag.active
-
-    property var captureHandle: {
-        if (!hasWindow)
-            return null
-
-        if (window.wayland)
-            return window.wayland
-
-        if (window.handle)
-            return window.handle
-
-        return null
-    }
+    property var captureHandle: root.safeCaptureHandle()
 
     readonly property bool canScreencopy: root.hasWindow
         && ShellState.overviewOpen
         && root.captureHandle !== null
         && root.captureHandle !== undefined
-        && root.width > 2
-        && root.height > 2
+        && root.width >= root.minimumPreviewWidth
+        && root.height >= root.minimumPreviewHeight
+        && thumbnailHost.width >= root.minimumPreviewWidth
+        && thumbnailHost.height >= root.minimumPreviewHeight
+        && !root.dragStarted
 
     cardRadius: 3
     cardColor: Qt.rgba(0, 0, 0, 0.30)
 
-    cardBorderWidth: hasWindow && (window.urgent || window.activated) ? 1 : 0
-    cardBorderColor: hasWindow && window.urgent
+    cardBorderWidth: root.isUrgent() || root.isActivated() ? 1 : 0
+
+    cardBorderColor: root.isUrgent()
         ? WalTheme.accent
-        : hasWindow && window.activated
+        : root.isActivated()
             ? WalTheme.accent
             : Qt.rgba(0, 0, 0, 0.38)
 
-    opacity: isDragging ? 0.76 : 1
-    scale: isDragging ? 0.96 : 1
-    z: isDragging ? 100 : 2
+    opacity: root.dragStarted ? 0.76 : 1
+    scale: root.dragStarted ? 0.96 : 1
+    z: root.dragStarted ? 100 : 2
 
     Behavior on scale {
         NumberAnimation {
@@ -92,8 +64,16 @@ Card {
         return Qt.rgba(color.r, color.g, color.b, opacity)
     }
 
+    function clean(value) {
+        try {
+            return String(value || "").trim()
+        } catch (error) {
+            return ""
+        }
+    }
+
     function normalizedAddress(address) {
-        const raw = String(address || "")
+        const raw = root.clean(address)
 
         if (raw.length === 0)
             return ""
@@ -104,26 +84,179 @@ Card {
         return "0x" + raw
     }
 
-    ScreencopyView {
-        id: thumbnail
+    function safeValue(key) {
+        if (!root.hasWindow)
+            return ""
+
+        try {
+            const value = root.window[key]
+
+            if (value === undefined || value === null)
+                return ""
+
+            return root.clean(value)
+        } catch (error) {
+            return ""
+        }
+    }
+
+    function safeAppName() {
+        const appId = root.safeValue("appId")
+
+        if (appId.length > 0)
+            return appId
+
+        const className = root.safeValue("class")
+
+        if (className.length > 0)
+            return className
+
+        const initialClass = root.safeValue("initialClass")
+
+        if (initialClass.length > 0)
+            return initialClass
+
+        return "Window"
+    }
+
+    function safeTitle() {
+        const title = root.safeValue("title")
+
+        if (title.length > 0)
+            return title
+
+        return "Untitled"
+    }
+
+    function safeWorkspaceName() {
+        if (!root.hasWindow)
+            return ""
+
+        try {
+            if (root.window.workspace && root.window.workspace.name)
+                return root.clean(root.window.workspace.name)
+        } catch (error) {
+        }
+
+        return ""
+    }
+
+    function safeAddress() {
+        if (!root.hasWindow)
+            return ""
+
+        return root.normalizedAddress(root.safeValue("address"))
+    }
+
+    function safeCaptureHandle() {
+        if (!root.hasWindow)
+            return null
+
+        try {
+            if (root.window.wayland)
+                return root.window.wayland
+        } catch (error) {
+        }
+
+        try {
+            if (root.window.handle)
+                return root.window.handle
+        } catch (error) {
+        }
+
+        return null
+    }
+
+    function isUrgent() {
+        if (!root.hasWindow)
+            return false
+
+        try {
+            return Boolean(root.window.urgent)
+        } catch (error) {
+            return false
+        }
+    }
+
+    function isActivated() {
+        if (!root.hasWindow)
+            return false
+
+        try {
+            return Boolean(root.window.activated)
+        } catch (error) {
+            return false
+        }
+    }
+
+    function startDragIfNeeded(mouse) {
+        if (root.dragStarted || !root.hasWindow)
+            return
+
+        const dx = mouse.x - root.startX
+        const dy = mouse.y - root.startY
+        const distance = Math.sqrt(dx * dx + dy * dy)
+
+        if (distance < 8)
+            return
+
+        const address = root.safeAddress()
+
+        if (address.length === 0)
+            return
+
+        root.dragStarted = true
+        root.moved = true
+
+        const globalPos = root.mapToGlobal(mouse.x, mouse.y)
+
+        ShellState.setDraggedWindow(
+            address,
+            root.windowTitle,
+            root.workspaceName
+        )
+
+        ShellState.updateDragPosition(globalPos.x, globalPos.y)
+    }
+
+    Item {
+        id: thumbnailHost
 
         anchors.fill: parent
         anchors.margins: 1
 
-        captureSource: root.captureHandle
-        live: root.canScreencopy
-        paintCursor: false
-        visible: root.canScreencopy && thumbnail.hasContent
-        constraintSize: Qt.size(
-            Math.max(1, Math.round(root.width)),
-            Math.max(1, Math.round(root.height))
-        )
+        clip: true
+
+        Loader {
+            id: thumbnailLoader
+
+            anchors.fill: parent
+
+            active: root.canScreencopy
+
+            sourceComponent: ScreencopyView {
+                id: thumbnail
+
+                width: Math.max(root.minimumPreviewWidth, thumbnailHost.width)
+                height: Math.max(root.minimumPreviewHeight, thumbnailHost.height)
+
+                captureSource: root.captureHandle
+                live: root.canScreencopy
+
+                paintCursor: false
+
+                constraintSize: Qt.size(
+                    Math.max(root.minimumPreviewWidth, Math.round(thumbnailHost.width)),
+                    Math.max(root.minimumPreviewHeight, Math.round(thumbnailHost.height))
+                )
+            }
+        }
     }
 
     Card {
         anchors.fill: parent
 
-        visible: !root.canScreencopy || !thumbnail.hasContent
+        visible: !root.canScreencopy || !thumbnailLoader.active
 
         cardRadius: root.cardRadius
         cardColor: Qt.rgba(0, 0, 0, 0.22)
@@ -136,8 +269,8 @@ Card {
             anchors.centerIn: parent
 
             cardRadius: Math.round(width / 3)
-            cardColor: alpha(WalTheme.accent, 0.16)
-            cardBorderColor: alpha(WalTheme.accent, 0.34)
+            cardColor: root.alpha(WalTheme.accent, 0.16)
+            cardBorderColor: root.alpha(WalTheme.accent, 0.34)
 
             HeadingText {
                 anchors.centerIn: parent
@@ -157,8 +290,8 @@ Card {
     Rectangle {
         anchors.fill: parent
 
-        color: root.hasWindow && window.activated
-            ? alpha(WalTheme.accent, 0.06)
+        color: root.isActivated()
+            ? root.alpha(WalTheme.accent, 0.06)
             : "transparent"
 
         radius: root.cardRadius
@@ -170,49 +303,39 @@ Card {
         anchors.fill: parent
 
         enabled: root.hasWindow
-        cursorShape: Qt.PointingHandCursor
+        cursorShape: root.dragStarted ? Qt.ClosedHandCursor : Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton
 
-        drag.target: root
-        drag.axis: Drag.XAndYAxis
-        drag.threshold: 8
-
-        property bool moved: false
-        property real startX: 0
-        property real startY: 0
+        property bool wasPressed: false
 
         onPressed: function(mouse) {
             if (!root.hasWindow)
                 return
 
-            moved = false
+            root.moved = false
+            root.dragStarted = false
+
             startX = mouse.x
             startY = mouse.y
 
-            const globalPos = root.mapToGlobal(mouse.x, mouse.y)
-            const address = root.normalizedAddress(root.window.address)
+            wasPressed = true
 
-            ShellState.setDraggedWindow(
-                address,
-                root.windowTitle,
-                root.workspaceName
-            )
-
-            ShellState.updateDragPosition(globalPos.x, globalPos.y)
+            mouse.accepted = true
         }
 
         onPositionChanged: function(mouse) {
-            if (!root.hasWindow)
+            if (!root.hasWindow || !wasPressed)
                 return
 
-            const globalPos = root.mapToGlobal(mouse.x, mouse.y)
-            ShellState.updateDragPosition(globalPos.x, globalPos.y)
+            if (mouse.buttons & Qt.LeftButton) {
+                root.startDragIfNeeded(mouse)
 
-            if (
-                Math.abs(mouse.x - startX) > 8
-                || Math.abs(mouse.y - startY) > 8
-            ) {
-                moved = true
+                if (root.dragStarted) {
+                    const globalPos = root.mapToGlobal(mouse.x, mouse.y)
+                    ShellState.updateDragPosition(globalPos.x, globalPos.y)
+                }
+
+                mouse.accepted = true
             }
         }
 
@@ -220,50 +343,83 @@ Card {
             if (!root.hasWindow)
                 return
 
-            const globalPos = root.mapToGlobal(mouse.x, mouse.y)
-            ShellState.updateDragPosition(globalPos.x, globalPos.y)
+            wasPressed = false
 
-            if (mouse.button === Qt.MiddleButton) {
-                Hyprland.dispatch(
-                    "closewindow address:"
-                    + root.normalizedAddress(root.window.address)
-                )
+            const address = root.safeAddress()
 
-                ShellState.clearDraggedWindow()
+            if (root.dragStarted) {
+                const globalPos = root.mapToGlobal(mouse.x, mouse.y)
+                ShellState.updateDragPosition(globalPos.x, globalPos.y)
+                ShellState.requestDragRelease()
+
+                root.dragStarted = false
+                root.moved = false
+
                 root.x = 0
                 root.y = 0
+
+                mouse.accepted = true
                 return
             }
 
-            if (!moved) {
+            if (mouse.button === Qt.MiddleButton) {
+                if (address.length > 0) {
+                    Hyprland.dispatch(
+                        "closewindow address:" + address
+                    )
+                }
+
+                ShellState.clearDraggedWindow()
+
+                root.x = 0
+                root.y = 0
+
+                mouse.accepted = true
+                return
+            }
+
+            if (mouse.button === Qt.LeftButton) {
                 if (
-                    root.window.workspace
-                    && String(root.window.workspace.name).startsWith("special")
+                    root.workspaceName.length > 0
+                    && root.workspaceName.startsWith("special")
                 ) {
-                    const specialName = String(root.window.workspace.name).replace(
+                    const specialName = root.workspaceName.replace(
                         "special:",
                         ""
                     )
 
                     Hyprland.dispatch("togglespecialworkspace " + specialName)
                     ShellState.closeOverview()
+
                     root.x = 0
                     root.y = 0
+
+                    mouse.accepted = true
                     return
                 }
 
-                Hyprland.dispatch(
-                    "focuswindow address:"
-                    + root.normalizedAddress(root.window.address)
-                )
+                if (address.length > 0) {
+                    Hyprland.dispatch(
+                        "focuswindow address:" + address
+                    )
 
-                ShellState.closeOverview()
+                    ShellState.closeOverview()
+                }
+
                 root.x = 0
                 root.y = 0
+
+                mouse.accepted = true
                 return
             }
+        }
 
-            ShellState.requestDragRelease()
+        onCanceled: {
+            wasPressed = false
+            root.dragStarted = false
+            root.moved = false
+
+            ShellState.clearDraggedWindow()
 
             root.x = 0
             root.y = 0

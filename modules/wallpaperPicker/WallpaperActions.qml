@@ -5,11 +5,13 @@ import Quickshell.Io
 Item {
     id: root
 
-    property string wallpaperDir: "/home/hussein/Pictures/Wallpapers"
-    property string applyScript: "/home/hussein/.config/hypr/scripts/wallpaper-picker.lua"
+    readonly property string homeDir: Quickshell.env("HOME")
+
+    property string wallpaperDir: homeDir + "/Pictures/Wallpapers"
+    property string applyScript: homeDir + "/.config/hypr/scripts/wallpaper-picker.lua"
     property string luaBinary: "lua"
-    property string currentWallpaperCache: "/home/hussein/.cache/current-wallpaper"
-    property string fallbackWallpaper: "/home/hussein/Pictures/wallpaper.png"
+    property string currentWallpaperCache: homeDir + "/.cache/current-wallpaper"
+    property string fallbackWallpaper: homeDir + "/Pictures/wallpaper.png"
 
     property string pendingApplyPath: ""
     property string pendingRestorePath: ""
