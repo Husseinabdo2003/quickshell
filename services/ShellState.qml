@@ -13,6 +13,7 @@ QtObject {
     property bool dashboardOpen: false
     property bool wallpaperPickerOpen: false
     property bool clipboardOpen: false
+    property bool fileManagerOpen: false
 
     property bool volumeOsdOpen: false
     property bool brightnessOsdOpen: false
@@ -46,6 +47,7 @@ QtObject {
         dashboardOpen = false
         wallpaperPickerOpen = false
         clipboardOpen = false
+        fileManagerOpen = false
 
         overviewOpen = false
 
@@ -61,6 +63,7 @@ QtObject {
         dashboardOpen = false
         wallpaperPickerOpen = false
         clipboardOpen = false
+        fileManagerOpen = false
 
         overviewOpen = false
 
@@ -161,6 +164,22 @@ QtObject {
             closeClipboard()
         else
             openClipboard()
+    }
+
+    function openFileManager() {
+        closePanelPopups()
+        fileManagerOpen = true
+    }
+
+    function closeFileManager() {
+        fileManagerOpen = false
+    }
+
+    function toggleFileManager() {
+        if (fileManagerOpen)
+            closeFileManager()
+        else
+            openFileManager()
     }
 
     function openOverview() {

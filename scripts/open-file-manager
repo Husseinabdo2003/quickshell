@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+target="${1:-${HOME}}"
+
+if [[ "${target}" == file://* ]]; then
+    target="${target#file://}"
+    target="$(printf '%b' "${target//%/\\x}")"
+fi
+
+if [[ ! -d "${target}" ]]; then
+    target="$(dirname -- "${target}")"
+fi
+
+if ! qs ipc call fileManager openPath "${target}" >/dev/null 2>&1; then
+    qs -d -p "${HOME}/.config/quickshell" >/dev/null 2>&1 &
+    sleep 0.35
+    qs ipc call fileManager openPath "${target}" >/dev/null 2>&1 || true
+fi

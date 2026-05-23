@@ -6,9 +6,12 @@ Rectangle {
     id: root
 
     property alias text: input.text
+    property alias input: input
     property string placeholder: "Search ..."
+    property bool interceptFileShortcuts: false
 
     signal accepted()
+    signal fileShortcutPressed(int key, int modifiers)
 
     function forceInputFocus() {
         input.forceActiveFocus()
@@ -76,6 +79,26 @@ Rectangle {
         clip: true
         selectByMouse: true
         cursorVisible: activeFocus
+
+        Keys.onPressed: function(event) {
+            if (!root.interceptFileShortcuts)
+                return
+
+            const controlPressed = event.modifiers & Qt.ControlModifier
+            const fileShortcut = (controlPressed
+                    && (event.key === Qt.Key_C
+                        || event.key === Qt.Key_X
+                        || event.key === Qt.Key_V
+                        || event.key === Qt.Key_N))
+                || event.key === Qt.Key_Delete
+                || event.key === Qt.Key_F2
+
+            if (!fileShortcut)
+                return
+
+            root.fileShortcutPressed(event.key, event.modifiers)
+            event.accepted = true
+        }
 
         onAccepted: {
             root.accepted()

@@ -1,0 +1,216 @@
+#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+import time
+import uuid
+from pathlib import Path
+from urllib.parse import quote
+
+import gi
+
+gi.require_version("Gio", "2.0")
+gi.require_version("GLib", "2.0")
+from gi.repository import Gio, GLib
+
+
+BUS_NAME = "org.freedesktop.impl.portal.desktop.quickshell"
+OBJECT_PATH = "/org/freedesktop/portal/desktop"
+IFACE = "org.freedesktop.impl.portal.FileChooser"
+CONFIG_DIR = Path.home() / ".config" / "quickshell"
+RESULT_DIR = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "quickshell-file-picker"
+
+INTROSPECTION_XML = f"""
+<node>
+  <interface name="{IFACE}">
+    <method name="OpenFile">
+      <arg type="o" name="handle" direction="in"/>
+      <arg type="s" name="app_id" direction="in"/>
+      <arg type="s" name="parent_window" direction="in"/>
+      <arg type="s" name="title" direction="in"/>
+      <arg type="a{{sv}}" name="options" direction="in"/>
+      <arg type="u" name="response" direction="out"/>
+      <arg type="a{{sv}}" name="results" direction="out"/>
+    </method>
+    <method name="SaveFile">
+      <arg type="o" name="handle" direction="in"/>
+      <arg type="s" name="app_id" direction="in"/>
+      <arg type="s" name="parent_window" direction="in"/>
+      <arg type="s" name="title" direction="in"/>
+      <arg type="a{{sv}}" name="options" direction="in"/>
+      <arg type="u" name="response" direction="out"/>
+      <arg type="a{{sv}}" name="results" direction="out"/>
+    </method>
+    <method name="SaveFiles">
+      <arg type="o" name="handle" direction="in"/>
+      <arg type="s" name="app_id" direction="in"/>
+      <arg type="s" name="parent_window" direction="in"/>
+      <arg type="s" name="title" direction="in"/>
+      <arg type="a{{sv}}" name="options" direction="in"/>
+      <arg type="u" name="response" direction="out"/>
+      <arg type="a{{sv}}" name="results" direction="out"/>
+    </method>
+  </interface>
+</node>
+"""
+
+
+def variant_value(value):
+    if isinstance(value, GLib.Variant):
+        return value.unpack()
+
+    return value
+
+
+def option_path(options, key):
+    value = options.get(key)
+
+    if value is None:
+        return ""
+
+    unpacked = variant_value(value)
+
+    if isinstance(unpacked, (bytes, bytearray)):
+        return bytes(unpacked).rstrip(b"\0").decode("utf-8", "ignore")
+
+    if isinstance(unpacked, list):
+        raw = bytes(int(part) for part in unpacked if int(part) != 0)
+        return raw.decode("utf-8", "ignore")
+
+    return str(unpacked)
+
+
+def start_dir(options):
+    candidates = [
+        option_path(options, "current_folder"),
+        option_path(options, "current_file"),
+    ]
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+
+        path = Path(candidate)
+
+        if path.is_dir():
+            return str(path)
+
+        if path.parent.exists():
+            return str(path.parent)
+
+    return str(Path.home())
+
+
+def uri_for_path(path):
+    return "file://" + quote(str(Path(path).resolve()))
+
+
+def ensure_quickshell():
+    subprocess.Popen(
+        ["qs", "-d", "-p", str(CONFIG_DIR)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    time.sleep(0.35)
+
+
+def request_pick(method, title, options):
+    token = uuid.uuid4().hex
+    RESULT_DIR.mkdir(parents=True, exist_ok=True)
+
+    result_file = RESULT_DIR / f"{token}.result"
+    cancel_file = RESULT_DIR / f"{token}.cancel"
+
+    for path in (result_file, cancel_file):
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+
+    multiple = bool(variant_value(options.get("multiple", False)))
+    directory = bool(variant_value(options.get("directory", False)))
+    save = method in {"SaveFile", "SaveFiles"}
+    title = title or ("Save File" if save else "Open File")
+
+    args = [
+        "qs",
+        "ipc",
+        "call",
+        "fileManager",
+        "chooseFile",
+        token,
+        start_dir(options),
+        title,
+        "true" if multiple else "false",
+        "true" if directory else "false",
+        "true" if save else "false",
+    ]
+
+    try:
+        subprocess.run(args, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        ensure_quickshell()
+        subprocess.run(args, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    deadline = time.monotonic() + 600
+
+    while time.monotonic() < deadline:
+        if result_file.exists():
+            selected = result_file.read_text(encoding="utf-8").strip()
+            result_file.unlink(missing_ok=True)
+
+            if selected:
+                return 0, {"uris": GLib.Variant("as", [uri_for_path(selected)])}
+
+            return 1, {}
+
+        if cancel_file.exists():
+            cancel_file.unlink(missing_ok=True)
+            return 1, {}
+
+        time.sleep(0.08)
+
+    return 1, {}
+
+
+class FileChooserPortal:
+    def __init__(self):
+        self.node = Gio.DBusNodeInfo.new_for_xml(INTROSPECTION_XML)
+        self.interface = self.node.interfaces[0]
+        self.loop = GLib.MainLoop()
+
+    def run(self):
+        Gio.bus_own_name(
+            Gio.BusType.SESSION,
+            BUS_NAME,
+            Gio.BusNameOwnerFlags.NONE,
+            self.on_bus_acquired,
+            None,
+            self.on_name_lost,
+        )
+        self.loop.run()
+
+    def on_bus_acquired(self, connection, name):
+        connection.register_object(
+            OBJECT_PATH,
+            self.interface,
+            self.on_method_call,
+            None,
+            None,
+        )
+
+    def on_name_lost(self, connection, name):
+        self.loop.quit()
+
+    def on_method_call(self, connection, sender, object_path, interface_name, method_name, parameters, invocation):
+        try:
+            handle, app_id, parent_window, title, options = parameters.unpack()
+            response, results = request_pick(method_name, title, options)
+            invocation.return_value(GLib.Variant("(ua{sv})", (response, results)))
+        except Exception as error:
+            print(f"quickshell-filechooser-portal: {error}", file=sys.stderr)
+            invocation.return_value(GLib.Variant("(ua{sv})", (2, {})))
+
+
+if __name__ == "__main__":
+    FileChooserPortal().run()

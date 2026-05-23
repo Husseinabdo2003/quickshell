@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Quickshell File Manager
+Comment=Open folders with the Quickshell file manager
+Exec=/home/hussein/.config/quickshell/scripts/open-file-manager %U
+Icon=folder
+Terminal=false
+NoDisplay=true
+Categories=System;FileManager;
+MimeType=inode/directory;

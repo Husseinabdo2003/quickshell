@@ -15,6 +15,7 @@ import "modules/wallpaperPicker"
 import "modules/overview"
 import "modules/launcher"
 import "modules/clipboard"
+import "modules/fileManager"
 
 ShellRoot {
     id: root
@@ -75,6 +76,7 @@ ShellRoot {
 
     AppLauncher {}
     ClipboardPicker {}
+    FileManager {}
 
     WorkspaceOverview {}
 
