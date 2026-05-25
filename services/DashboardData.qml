@@ -117,18 +117,7 @@ Item {
     }
 
     function readFileText() {
-        try {
-            if (typeof dashboardFile.text === "function")
-                return dashboardFile.text()
-
-            if (dashboardFile.text !== undefined && dashboardFile.text !== null)
-                return String(dashboardFile.text)
-
-            return ""
-        } catch (error) {
-            root.lastError = "text read failed: " + error
-            return ""
-        }
+        return String(dashboardFile.text || "").trim()
     }
 
     function parseDashboard(rawText) {
@@ -149,8 +138,14 @@ Item {
     }
 
     function applyFileContents() {
+        readDashboardProcess.exec([
+            "cat",
+            root.dashboardPath
+        ])
+    }
+
+    function applyRawFileContents(raw) {
         try {
-            const raw = root.readFileText()
             root.items = root.parseDashboard(raw)
             root.loaded = true
             root.lastError = ""
@@ -159,6 +154,29 @@ Item {
             root.items = []
             root.loaded = false
             root.lastError = String(error)
+        }
+    }
+
+    Process {
+        id: readDashboardProcess
+
+        command: []
+        running: false
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.applyRawFileContents(this.text)
+            }
+        }
+
+        stderr: StdioCollector {}
+
+        onExited: function(exitCode) {
+            if (exitCode !== 0) {
+                root.items = []
+                root.loaded = false
+                root.lastError = "Could not read dashboard.json"
+            }
         }
     }
 

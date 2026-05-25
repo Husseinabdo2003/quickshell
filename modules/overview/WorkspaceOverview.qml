@@ -116,7 +116,9 @@ Scope {
         }
 
         function normalWorkspaceNames() {
-            const names = ["1", "2", "3", "4", "5"]
+            const names = Array.from({
+                length: OverviewConfig.minimumNormalWorkspaces
+            }, (_, i) => String(i + 1))
 
             Hyprland.workspaces.values
                 .filter(ws => !String(ws.name).startsWith("special"))

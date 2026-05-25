@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 
 Item {
     id: root
@@ -8,28 +9,46 @@ Item {
 
     property string query: ""
     property string activeCategory: "all"
+    property string countsPath: Quickshell.env("HOME") + "/.cache/quickshell/launch-counts.json"
     property int selectedIndex: 0
 
     property int maxResults: 999
 
     property var apps: []
     property var filteredApps: []
-
-    property int loadAttempts: 0
-    readonly property int maxLoadAttempts: 12
+    property var launchCounts: ({})
 
     readonly property var selectedApp: filteredApps.length > 0
         ? filteredApps[Math.max(0, Math.min(selectedIndex, filteredApps.length - 1))]
         : null
 
-    Timer {
-        id: retryLoadTimer
+    Process {
+        id: readCountsProcess
 
-        interval: 120
-        repeat: false
+        command: []
+        running: false
 
-        onTriggered: {
-            root.loadApps()
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.applyCountsText(this.text)
+            }
+        }
+
+        stderr: StdioCollector {}
+    }
+
+    Process {
+        id: writeCountsProcess
+
+        command: []
+        running: false
+
+        stdout: StdioCollector {}
+        stderr: StdioCollector {
+            onStreamFinished: {
+                if (this.text.trim().length > 0)
+                    console.log("Launcher counts write stderr:", this.text.trim())
+            }
         }
     }
 
@@ -107,6 +126,110 @@ Item {
         } catch (error) {
             return ""
         }
+    }
+
+    function appId(app) {
+        if (!app)
+            return ""
+
+        try {
+            return String(app.id || app.name || "").trim()
+        } catch (error) {
+            return ""
+        }
+    }
+
+    function launchCountFor(app) {
+        if (!app)
+            return 0
+
+        const id = root.appId(app)
+
+        if (id.length === 0)
+            return 0
+
+        try {
+            const value = root.launchCounts[id]
+            const count = Number(value || 0)
+
+            if (isNaN(count))
+                return 0
+
+            return count
+        } catch (error) {
+            return 0
+        }
+    }
+
+    function applyCountsText(rawText) {
+        try {
+            const raw = String(rawText || "").trim()
+
+            if (raw.length === 0) {
+                root.launchCounts = ({})
+                root.updateFilteredApps()
+                return
+            }
+
+            const parsed = JSON.parse(raw)
+
+            if (!parsed) {
+                root.launchCounts = ({})
+                root.updateFilteredApps()
+                return
+            }
+
+            root.launchCounts = parsed
+            root.updateFilteredApps()
+        } catch (error) {
+            console.log("Launcher counts parse failed:", error)
+            root.launchCounts = ({})
+            root.updateFilteredApps()
+        }
+    }
+
+    function loadCounts() {
+        readCountsProcess.exec([
+            "cat",
+            root.countsPath
+        ])
+    }
+
+    function writeCounts() {
+        let payload = "{}"
+
+        try {
+            payload = JSON.stringify(root.launchCounts)
+        } catch (error) {
+            payload = "{}"
+        }
+
+        writeCountsProcess.exec([
+            "python3",
+            "-c",
+            "import json, os, sys\npath = sys.argv[1]\ndata = sys.argv[2]\nos.makedirs(os.path.dirname(path), exist_ok=True)\njson.loads(data)\nopen(path, 'w', encoding='utf-8').write(data + '\\n')\n",
+            root.countsPath,
+            payload
+        ])
+    }
+
+    function incrementCount(appId) {
+        const id = String(appId || "").trim()
+
+        if (id.length === 0)
+            return
+
+        const nextCounts = Object.assign({}, root.launchCounts)
+
+        try {
+            nextCounts[id] = Number(nextCounts[id] || 0) + 1
+        } catch (error) {
+            nextCounts[id] = 1
+        }
+
+        root.launchCounts = nextCounts
+        root.updateFilteredApps()
+        root.writeCounts()
     }
 
     function makeSafeApp(entry) {
@@ -246,18 +369,26 @@ Item {
                 visibleApps.push(safeApp)
         }
 
-        if (visibleApps.length === 0 && root.loadAttempts < root.maxLoadAttempts) {
-            root.loadAttempts += 1
-            retryLoadTimer.restart()
-            return
-        }
-
-        visibleApps.sort(function(a, b) {
-            return root.appName(a).localeCompare(root.appName(b))
-        })
+        root.sortApps(visibleApps)
 
         root.apps = visibleApps
         root.updateFilteredApps()
+    }
+
+    function sortApps(list) {
+        if (!Array.isArray(list))
+            return []
+
+        list.sort(function(a, b) {
+            const countDiff = root.launchCountFor(b) - root.launchCountFor(a)
+
+            if (countDiff !== 0)
+                return countDiff
+
+            return root.appName(a).localeCompare(root.appName(b))
+        })
+
+        return list
     }
 
     function updateFilteredApps() {
@@ -276,7 +407,7 @@ Item {
             return root.appText(app).indexOf(q) !== -1
         })
 
-        root.filteredApps = results.slice(0, root.maxResults)
+        root.filteredApps = root.sortApps(results).slice(0, root.maxResults)
 
         if (root.selectedIndex >= root.filteredApps.length)
             root.selectedIndex = Math.max(0, root.filteredApps.length - 1)
@@ -292,12 +423,9 @@ Item {
     }
 
     function reset() {
-        retryLoadTimer.stop()
-
         root.query = ""
         root.activeCategory = "all"
         root.selectedIndex = 0
-        root.loadAttempts = 0
 
         root.apps = []
         root.filteredApps = []
@@ -314,5 +442,10 @@ Item {
 
     function moveUp() {
         root.selectedIndex = Math.max(root.selectedIndex - 1, 0)
+    }
+
+    Component.onCompleted: {
+        root.loadCounts()
+        root.loadApps()
     }
 }

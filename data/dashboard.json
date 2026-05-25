@@ -2,6 +2,16 @@
     "generatedBy": "hypr/lua/dashboard.lua",
     "sections": {
         "items": [
+        {
+            "id": "1",
+            "category": "todo",
+            "type": "task",
+            "title": "heloo",
+            "course": "",
+            "date": "2026-",
+            "priority": "medium",
+            "status": "upcoming"
+        }
         ]
     }
 }

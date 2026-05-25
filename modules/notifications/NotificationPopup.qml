@@ -172,6 +172,9 @@ PanelWindow {
     }
 
     function addNotification(notification) {
+        if (ShellState.doNotDisturb)
+            return
+
         if (!notification)
             return
 

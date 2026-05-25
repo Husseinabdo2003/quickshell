@@ -2,7 +2,7 @@ pragma Singleton
 
 import QtQuick
 
-QtObject {
+Item {
     id: root
 
     property bool powerMenuOpen: false
@@ -21,6 +21,11 @@ QtObject {
     property bool powerProfileOsdOpen: false
 
     property bool overviewOpen: false
+    property bool doNotDisturb: false
+
+    property bool screenshotOsdOpen: false
+    property string screenshotPath: ""
+    property string screenshotMode: "menu"  // menu or result
 
     // Kept for overview drag support.
     property string draggedWindowAddress: ""
@@ -199,6 +204,18 @@ QtObject {
             openOverview()
     }
 
+    function toggleDoNotDisturb() {
+        doNotDisturb = !doNotDisturb
+    }
+
+    function enableDoNotDisturb() {
+        doNotDisturb = true
+    }
+
+    function disableDoNotDisturb() {
+        doNotDisturb = false
+    }
+
     function showVolumeOsd() {
         closeOsds()
         volumeOsdOpen = true
@@ -235,6 +252,13 @@ QtObject {
         powerProfileOsdOpen = false
     }
 
+    function showScreenshotOsd(path) {
+        screenshotPath = String(path || "")
+        screenshotMode = "result"
+        screenshotOsdOpen = true
+        screenshotHideTimer.restart()
+    }
+
     function setDraggedWindow(address, title, workspaceName) {
         draggedWindowAddress = String(address || "")
         draggedWindowTitle = String(title || "")
@@ -258,5 +282,16 @@ QtObject {
         dragGlobalX = -1
         dragGlobalY = -1
         dragReleaseRequested = false
+    }
+
+    Timer {
+        id: screenshotHideTimer
+
+        interval: 2000
+        repeat: false
+
+        onTriggered: {
+            root.screenshotOsdOpen = false
+        }
     }
 }

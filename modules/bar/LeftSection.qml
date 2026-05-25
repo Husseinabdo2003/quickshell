@@ -3,12 +3,24 @@ import QtQuick
 import "../../theme"
 import "../../widgets"
 
-Row {
+Item {
     id: root
 
-    spacing: Theme.spacing
+    clip: true
+    implicitWidth: Math.min(innerRow.implicitWidth, 400)
+    implicitHeight: innerRow.implicitHeight
 
-    Workspaces {}
+    Row {
+        id: innerRow
 
-    Tray {}
+        spacing: Theme.spacing
+
+        DndToggle {}
+
+        Keyboard {}
+
+        Workspaces {}
+
+        Tray {}
+    }
 }

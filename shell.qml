@@ -16,6 +16,7 @@ import "modules/overview"
 import "modules/launcher"
 import "modules/clipboard"
 import "modules/fileManager"
+import "modules/screenshot"
 
 ShellRoot {
     id: root
@@ -37,6 +38,22 @@ ShellRoot {
 
         function showPowerProfileOsd(): void {
             ShellState.showPowerProfileOsd()
+        }
+    }
+
+    IpcHandler {
+        target: "dnd"
+
+        function toggle(): void {
+            ShellState.toggleDoNotDisturb()
+        }
+
+        function enable(): void {
+            ShellState.enableDoNotDisturb()
+        }
+
+        function disable(): void {
+            ShellState.disableDoNotDisturb()
         }
     }
 
@@ -68,6 +85,7 @@ ShellRoot {
     BrightnessOSD {}
     LockOSD {}
     PowerProfileOSD {}
+    ScreenshotOSD {}
 
     NotificationPopup {}
     NotificationCenter {}

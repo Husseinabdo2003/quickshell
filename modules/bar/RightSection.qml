@@ -3,22 +3,34 @@ import QtQuick
 import "../../theme"
 import "../../widgets"
 
-Row {
+Item {
     id: root
 
-    spacing: Theme.spacing
+    property real availableWidth: parent ? parent.width : 9999
 
-    Cpu {}
+    clip: true
+    implicitWidth: innerRow.implicitWidth
+    implicitHeight: innerRow.implicitHeight
 
-    Ram {}
+    Row {
+        id: innerRow
 
-    Network {}
+        spacing: Theme.spacing
 
-    Audio {}
+        Cpu {
+            visible: root.availableWidth > 520
+        }
 
-    Battery {}
+        Ram {
+            visible: root.availableWidth > 420
+        }
 
-    Keyboard {}
+        Network {}
 
-    Power {}
+        Audio {}
+
+        Battery {}
+
+        Power {}
+    }
 }

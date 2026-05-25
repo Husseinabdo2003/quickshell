@@ -110,6 +110,8 @@ PanelWindow {
         root.launchingApp = true
         launchResetTimer.restart()
 
+        launcherState.incrementCount(app.id)
+
         root.closeLauncher()
 
         try {

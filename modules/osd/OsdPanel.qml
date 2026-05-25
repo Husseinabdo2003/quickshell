@@ -12,6 +12,7 @@ Card {
     property real minimum: 0
     property real maximum: 100
     property bool muted: false
+    property bool overThreshold: false
 
     readonly property real safeMinimum: Math.min(root.minimum, root.maximum)
     readonly property real safeMaximum: Math.max(root.minimum, root.maximum)
@@ -54,7 +55,11 @@ Card {
             sliderWidth: 115
             sliderHeight: 5
 
-            fillColor: root.muted ? WalTheme.fgMuted : WalTheme.accent
+            fillColor: root.overThreshold
+                ? WalTheme.urgent
+                : root.muted
+                    ? WalTheme.fgMuted
+                    : WalTheme.accent
 
             anchors.verticalCenter: parent.verticalCenter
         }
@@ -70,6 +75,7 @@ Card {
                 font.pixelSize: Theme.fontSize
 
                 muted: root.muted
+                color: root.overThreshold ? WalTheme.urgent : WalTheme.fg
             }
         }
     }

@@ -16,6 +16,16 @@ local function notify(title, message)
     run("notify-send " .. shell_quote(title) .. " " .. shell_quote(message) .. " >/dev/null 2>&1")
 end
 
+local function clean(str)
+    str = tostring(str or "")
+    str = str:gsub("\n", " ")
+    str = str:gsub("|", "/")
+    str = str:gsub("^%s+", "")
+    str = str:gsub("%s+$", "")
+
+    return str
+end
+
 local function read_lines(path)
     local file = io.open(path, "r")
 
@@ -55,22 +65,22 @@ local function split_pipe(line)
     for part in string.gmatch(line, "([^|]*)|?") do
         table.insert(parts, part)
 
-        if #parts == 7 then
+        if #parts == 8 then
             break
         end
     end
 
-    while #parts < 7 do
+    while #parts < 8 do
         table.insert(parts, "")
     end
 
     return parts
 end
 
-local id = tonumber(arg[1] or "")
-local next_status = tostring(arg[2] or "")
+local id = clean(arg[1])
+local next_status = clean(arg[2])
 
-if not id then
+if id == "" then
     notify("Dashboard", "Invalid task id")
     os.exit(1)
 end
@@ -81,18 +91,16 @@ end
 
 local lines = read_lines(data_file)
 local output = {}
-local current_id = 0
 local updated = false
 
 for index, line in ipairs(lines) do
-    if index == 1 then
+    if index == 1 or line == "" then
         table.insert(output, line)
-    elseif line ~= "" then
-        current_id = current_id + 1
+    else
+        local parts = split_pipe(line)
 
-        if current_id == id then
-            local parts = split_pipe(line)
-            parts[7] = next_status
+        if clean(parts[1]) == id then
+            parts[8] = next_status
             table.insert(output, table.concat(parts, "|"))
             updated = true
         else

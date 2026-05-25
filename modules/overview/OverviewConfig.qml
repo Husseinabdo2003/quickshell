@@ -2,6 +2,8 @@ pragma Singleton
 import QtQuick
 
 QtObject {
+    property int minimumNormalWorkspaces: 5
+
     property var pinnedSpecialWorkspaces: [
         "special:1",
         "special:music",

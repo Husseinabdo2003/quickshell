@@ -34,6 +34,7 @@ PanelWindow {
 
     readonly property int sliderMaximum: Math.round(root.maxVolume * 100)
     readonly property int shownVolume: root.muted ? 0 : root.volume
+    readonly property bool overThreshold: root.volume > 100
 
     PwObjectTracker {
         objects: sink !== null ? [sink] : []
@@ -85,6 +86,7 @@ PanelWindow {
         maximum: root.sliderMaximum
         valueText: root.shownVolume + "%"
         muted: root.muted
+        overThreshold: root.overThreshold
     }
 
     Timer {

@@ -12,11 +12,12 @@ PanelWindow {
 
     property bool windowAlive: false
     property bool actionRunning: false
+    property bool hibernateAvailable: false
 
-    readonly property int panelWidth: 520
+    readonly property int panelWidth: 640
     readonly property int panelHeight: 260
-    readonly property int openDuration: 210
-    readonly property int closeDuration: 160
+    readonly property int openDuration: Animations.normal
+    readonly property int closeDuration: Animations.fast
 
     anchors {
         left: true
@@ -60,6 +61,19 @@ PanelWindow {
         }
     }
 
+    Process {
+        id: hibernateCheckProcess
+
+        command: []
+        running: false
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.hibernateAvailable = String(this.text || "").trim() === "ok"
+            }
+        }
+    }
+
     Connections {
         target: ShellState
 
@@ -81,7 +95,7 @@ PanelWindow {
     Timer {
         id: closeHideTimer
 
-        interval: root.closeDuration + 40
+        interval: Animations.normal
         repeat: false
 
         onTriggered: {
@@ -108,11 +122,7 @@ PanelWindow {
         if (closeImmediately)
             root.closeMenu()
 
-        Quickshell.execDetached([
-            "bash",
-            "-lc",
-            cleanCommand
-        ])
+        Quickshell.execDetached(cleanCommand.split(/\s+/))
     }
 
     PopupBackdrop {
@@ -222,6 +232,20 @@ PanelWindow {
                 }
 
                 PowerAction {
+                    icon: "󰤄"
+                    label: "Hibernate"
+                    command: "systemctl hibernate"
+                    visible: root.hibernateAvailable
+                    locked: root.actionRunning
+                    needsConfirmation: false
+                    danger: false
+
+                    onRequested: function(command) {
+                        root.runPowerAction(command, true)
+                    }
+                }
+
+                PowerAction {
                     icon: ""
                     label: "Reboot"
                     command: "systemctl reboot"
@@ -252,5 +276,10 @@ PanelWindow {
 
     Component.onCompleted: {
         root.windowAlive = ShellState.powerMenuOpen
+        hibernateCheckProcess.exec([
+            "bash",
+            "-c",
+            "systemctl hibernate --dry-run >/dev/null 2>&1 && echo ok"
+        ])
     }
 }

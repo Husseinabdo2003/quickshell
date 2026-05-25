@@ -101,6 +101,34 @@ def start_dir(options):
     return str(Path.home())
 
 
+def option_text(options, key):
+    value = options.get(key)
+
+    if value is None:
+        return ""
+
+    unpacked = variant_value(value)
+
+    if isinstance(unpacked, (bytes, bytearray)):
+        return bytes(unpacked).rstrip(b"\0").decode("utf-8", "ignore")
+
+    return str(unpacked).strip()
+
+
+def suggested_name(options):
+    name = option_text(options, "current_name")
+
+    if name:
+        return Path(name).name
+
+    current_file = option_path(options, "current_file")
+
+    if current_file:
+        return Path(current_file).name
+
+    return "download"
+
+
 def uri_for_path(path):
     return "file://" + quote(str(Path(path).resolve()))
 
@@ -137,13 +165,14 @@ def request_pick(method, title, options):
         "ipc",
         "call",
         "fileManager",
-        "chooseFile",
+        "chooseFileWithName",
         token,
         start_dir(options),
         title,
         "true" if multiple else "false",
         "true" if directory else "false",
         "true" if save else "false",
+        suggested_name(options) if save else "",
     ]
 
     try:

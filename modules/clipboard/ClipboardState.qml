@@ -17,8 +17,7 @@ Item {
     property var filteredItems: []
 
     property string selectedValue: ""
-    property string copyCommand: ""
-    property string deleteCommand: ""
+    property string pendingCopyTempFile: ""
 
     property bool actionRunning: false
     property bool reloadPending: false
@@ -114,10 +113,6 @@ Item {
         return String(root.filteredItems[safeIndex] || "")
     }
 
-    function shellQuote(value) {
-        return "'" + String(value || "").replace(/'/g, "'\\''") + "'"
-    }
-
     function runSelectedAction() {
         const value = root.selectedItem()
         root.runItemAction(value)
@@ -143,7 +138,7 @@ Item {
     }
 
     function copyItem(value) {
-        if (root.actionRunning || copyProcess.running || deleteProcess.running || deleteAllProcess.running)
+        if (root.actionRunning || writeCopyProcess.running || copyProcess.running || deleteProcess.running || deleteAllProcess.running)
             return
 
         if (!value || String(value).length === 0)
@@ -154,9 +149,15 @@ Item {
         deleteAllConfirmTimer.stop()
 
         root.selectedValue = String(value)
-        root.copyCommand = "printf '%s' " + root.shellQuote(root.selectedValue) + " | cliphist decode | wl-copy"
+        root.pendingCopyTempFile = root.copyTempPath()
 
-        copyProcess.running = true
+        writeCopyProcess.exec([
+            "python3",
+            "-c",
+            "import os, sys\npath = sys.argv[1]\nvalue = sys.argv[2]\nos.makedirs(os.path.dirname(path), exist_ok=True)\nopen(path, 'w', encoding='utf-8').write(value)\n",
+            root.pendingCopyTempFile,
+            root.selectedValue
+        ])
     }
 
     function deleteSelected() {
@@ -169,7 +170,7 @@ Item {
     }
 
     function deleteItem(value) {
-        if (root.actionRunning || copyProcess.running || deleteProcess.running || deleteAllProcess.running)
+        if (root.actionRunning || writeCopyProcess.running || copyProcess.running || deleteProcess.running || deleteAllProcess.running)
             return
 
         if (!value || String(value).length === 0)
@@ -180,9 +181,13 @@ Item {
         deleteAllConfirmTimer.stop()
 
         root.selectedValue = String(value)
-        root.deleteCommand = "printf '%s' " + root.shellQuote(root.selectedValue) + " | cliphist delete"
-
-        deleteProcess.running = true
+        deleteProcess.exec([
+            "bash",
+            "-c",
+            "printf '%s' \"$1\" | cliphist delete",
+            "cliphist-delete",
+            root.selectedValue
+        ])
     }
 
     function requestDeleteAll() {
@@ -204,7 +209,7 @@ Item {
     }
 
     function deleteAll() {
-        if (root.actionRunning || copyProcess.running || deleteProcess.running || deleteAllProcess.running)
+        if (root.actionRunning || writeCopyProcess.running || copyProcess.running || deleteProcess.running || deleteAllProcess.running)
             return
 
         root.actionRunning = true
@@ -217,8 +222,11 @@ Item {
     function finishAction() {
         root.actionRunning = false
         root.selectedValue = ""
-        root.copyCommand = ""
-        root.deleteCommand = ""
+    }
+
+    function copyTempPath() {
+        const runtimeDir = Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
+        return runtimeDir + "/qs-clip-" + Date.now() + ".tmp"
     }
 
     Process {
@@ -255,17 +263,40 @@ Item {
     }
 
     Process {
-        id: copyProcess
+        id: writeCopyProcess
 
-        command: [
-            "bash",
-            "-lc",
-            root.copyCommand
-        ]
+        command: []
+        running: false
 
         stdout: StdioCollector {}
 
         onExited: function(exitCode) {
+            if (exitCode !== 0) {
+                root.cleanupPendingCopyTempFile()
+                root.finishAction()
+                return
+            }
+
+            copyProcess.exec([
+                "bash",
+                "-c",
+                "cliphist decode < \"$1\" | wl-copy",
+                "cliphist-copy",
+                root.pendingCopyTempFile
+            ])
+        }
+    }
+
+    Process {
+        id: copyProcess
+
+        command: []
+        running: false
+
+        stdout: StdioCollector {}
+
+        onExited: function(exitCode) {
+            root.cleanupPendingCopyTempFile()
             root.finishAction()
 
             if (exitCode === 0)
@@ -276,11 +307,8 @@ Item {
     Process {
         id: deleteProcess
 
-        command: [
-            "bash",
-            "-lc",
-            root.deleteCommand
-        ]
+        command: []
+        running: false
 
         stdout: StdioCollector {}
 
@@ -290,6 +318,28 @@ Item {
             if (exitCode === 0)
                 root.load()
         }
+    }
+
+    Process {
+        id: cleanupCopyProcess
+
+        command: []
+        running: false
+    }
+
+    function cleanupPendingCopyTempFile() {
+        const tempFile = root.pendingCopyTempFile
+
+        root.pendingCopyTempFile = ""
+
+        if (tempFile.length === 0)
+            return
+
+        cleanupCopyProcess.exec([
+            "rm",
+            "-f",
+            tempFile
+        ])
     }
 
     Process {

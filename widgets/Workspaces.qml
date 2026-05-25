@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Hyprland
 
 import "../components"
+import "../modules/overview"
 import "../theme"
 
 BarPill {
@@ -28,24 +29,6 @@ BarPill {
             return ""
 
         return name.replace("special:", "")
-    }
-
-    function displayName(workspace) {
-        const name = root.workspaceName(workspace)
-
-        if (name === "special:music")
-            return ""
-
-        if (name === "special:terminal")
-            return ""
-
-        if (name === "special:notes")
-            return "󰎞"
-
-        if (name.startsWith("special:"))
-            return "󰊠"
-
-        return name
     }
 
     function workspaceWidth(workspace, textWidth) {
@@ -127,7 +110,7 @@ BarPill {
 
                     anchors.centerIn: parent
 
-                    text: root.displayName(modelData)
+                    text: OverviewConfig.specialWorkspaceLabel(root.workspaceName(modelData))
                     color: WalTheme.fg
 
                     font.family: "JetBrainsMono Nerd Font"

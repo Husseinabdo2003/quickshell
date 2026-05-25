@@ -63,6 +63,7 @@ PanelWindow {
     property bool pickerSaveMode: false
     property string pickerToken: ""
     property string pickerTitle: ""
+    property string pickerSaveName: ""
     readonly property bool fileShortcutsEnabled: ShellState.fileManagerOpen && !root.promptIsOpen()
 
     readonly property var sidebarPlaces: [
@@ -113,6 +114,16 @@ PanelWindow {
         }
 
         function chooseFile(token: string, startDir: string, title: string, multiple: bool, directory: bool, save: bool): void {
+            root.openPicker(token, startDir, title, multiple, directory, save, "download")
+        }
+
+        function chooseFileWithName(token: string, startDir: string, title: string, multiple: bool, directory: bool, save: bool, saveName: string): void {
+            root.openPicker(token, startDir, title, multiple, directory, save, saveName)
+        }
+    }
+
+    function openPicker(token, startDir, title, multiple, directory, save, saveName) {
+        try {
             const cleanDir = String(startDir || root.homeDir)
 
             root.pickerActive = true
@@ -120,10 +131,13 @@ PanelWindow {
             root.pickerSaveMode = save
             root.pickerToken = String(token || "")
             root.pickerTitle = String(title || "")
+            root.pickerSaveName = String(saveName || "download")
             root.query = ""
 
             ShellState.openFileManager()
             fileActions.listDirectory(cleanDir, "folder")
+        } catch (error) {
+            console.log("FileManager: failed to open picker:", error)
         }
     }
 
@@ -457,11 +471,23 @@ PanelWindow {
 
         entriesModel.clear()
 
-        for (let index = 0; index < sortedEntries.length; index++)
+        if (selected.length > 0) {
+            root.selectedName = ""
+            root.selectedKind = ""
+            root.selectedSizeText = ""
+            root.selectedModifiedText = ""
+        }
+
+        for (let index = 0; index < sortedEntries.length; index++) {
             entriesModel.append(sortedEntries[index])
 
-        if (selected.length > 0)
-            root.selectEntry(selected)
+            if (sortedEntries[index].path === selected) {
+                root.selectedName = sortedEntries[index].name
+                root.selectedKind = sortedEntries[index].kind
+                root.selectedSizeText = sortedEntries[index].sizeText
+                root.selectedModifiedText = sortedEntries[index].modifiedText
+            }
+        }
     }
 
     function setSort(key) {
@@ -601,6 +627,25 @@ PanelWindow {
         if (!root.pickerActive)
             return ""
 
+        if (root.pickerSaveMode) {
+            const saveName = fileActions.fileName(root.pickerSaveName)
+
+            if (saveName.length === 0)
+                return ""
+
+            if (root.selectedPath.length > 0 && root.selectedKind !== "directory")
+                return root.selectedPath
+
+            const targetDir = root.selectedKind === "directory" && root.selectedPath.length > 0
+                ? root.selectedPath
+                : fileActions.currentDir
+
+            if (targetDir.length === 0)
+                return ""
+
+            return targetDir + "/" + saveName
+        }
+
         if (root.pickerDirectoryMode) {
             if (root.selectedKind === "directory")
                 return root.selectedPath
@@ -621,11 +666,15 @@ PanelWindow {
         const runtimeDir = Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
         const pickerDir = runtimeDir + "/quickshell-file-picker"
         const target = pickerDir + "/" + root.pickerToken + suffix
-        const command = "mkdir -p " + fileActions.shellQuote(pickerDir)
-            + "; printf '%s\\n' " + fileActions.shellQuote(value)
-            + " > " + fileActions.shellQuote(target)
 
-        Quickshell.execDetached(["bash", "-lc", command])
+        writePickerProcess.exec([
+            "python3",
+            "-c",
+            "import os, sys\npicker_dir, target, value = sys.argv[1:4]\nos.makedirs(picker_dir, exist_ok=True)\nopen(target, 'w', encoding='utf-8').write(value + '\\n')\n",
+            pickerDir,
+            target,
+            value
+        ])
     }
 
     function finishPicker(accepted) {
@@ -647,7 +696,15 @@ PanelWindow {
         root.pickerSaveMode = false
         root.pickerToken = ""
         root.pickerTitle = ""
+        root.pickerSaveName = ""
         ShellState.closeFileManager()
+    }
+
+    Process {
+        id: writePickerProcess
+
+        command: []
+        running: false
     }
 
     function currentPathLabel() {
@@ -1291,7 +1348,9 @@ PanelWindow {
                                     : root.pickerActive
                                         ? root.pickerDirectoryMode
                                             ? "Choose a folder"
-                                            : "Select a file"
+                                            : root.pickerSaveMode
+                                                ? "Save as " + root.pickerSaveName
+                                                : "Select a file"
                                     : root.selectedPath.length > 0
                                         ? root.selectedPath
                                         : root.statusText
