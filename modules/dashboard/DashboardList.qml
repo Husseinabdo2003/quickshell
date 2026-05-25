@@ -9,8 +9,10 @@ Flickable {
     property var items: []
     property string activeCategory: "all"
     property bool busy: false
+    property string expandedSection: ""
 
     signal removeRequested(string itemId)
+    signal doneRequested(string itemId, bool done)
 
     clip: true
 
@@ -52,21 +54,60 @@ Flickable {
         }
     }
 
+    function normalizedStatus(item) {
+        if (!item || item.status === undefined || item.status === null)
+            return ""
+
+        try {
+            return String(item.status).toLowerCase().trim()
+        } catch (error) {
+            return ""
+        }
+    }
+
+    function isDone(item) {
+        return root.normalizedStatus(item) === "done"
+    }
+
+    function sortedItems(items) {
+        const list = Array.isArray(items) ? items.slice() : []
+
+        list.sort(function(a, b) {
+            const aDone = root.isDone(a)
+            const bDone = root.isDone(b)
+
+            if (aDone !== bDone)
+                return aDone ? 1 : -1
+
+            return 0
+        })
+
+        return list
+    }
+
     function highPriorityItems() {
         return root.safeItems().filter(function(item) {
-            return root.normalizedPriority(item) === "high"
+            return root.normalizedPriority(item) === "high" && !root.isDone(item)
         })
     }
 
     function categoryItems(category) {
         return root.safeItems().filter(function(item) {
             return root.normalizedCategory(item) === category
-                && root.normalizedPriority(item) !== "high"
+                && (root.normalizedPriority(item) !== "high" || root.isDone(item))
         })
     }
 
     function hasAnyItems() {
         return root.safeItems().length > 0
+    }
+
+    function toggleSection(sectionId) {
+        root.expandedSection = root.expandedSection === sectionId ? "" : sectionId
+    }
+
+    onActiveCategoryChanged: {
+        root.expandedSection = ""
     }
 
     Column {
@@ -91,13 +132,23 @@ Flickable {
 
                 title: "High priority"
                 subtitle: "Needs attention first"
+                sectionId: "high"
                 icon: "󰀦"
                 items: root.highPriorityItems()
                 danger: true
                 busy: root.busy
+                expanded: root.expandedSection === "high"
+
+                onToggleRequested: function(sectionId) {
+                    root.toggleSection(sectionId)
+                }
 
                 onRemoveRequested: function(itemId) {
                     root.removeRequested(itemId)
+                }
+
+                onDoneRequested: function(itemId, done) {
+                    root.doneRequested(itemId, done)
                 }
             }
 
@@ -106,13 +157,23 @@ Flickable {
 
                 title: "Exams"
                 subtitle: "Upcoming exam-related items"
+                sectionId: "exams"
                 icon: "󰑴"
                 items: root.categoryItems("exams")
                 danger: false
                 busy: root.busy
+                expanded: root.expandedSection === "exams"
+
+                onToggleRequested: function(sectionId) {
+                    root.toggleSection(sectionId)
+                }
 
                 onRemoveRequested: function(itemId) {
                     root.removeRequested(itemId)
+                }
+
+                onDoneRequested: function(itemId, done) {
+                    root.doneRequested(itemId, done)
                 }
             }
 
@@ -121,13 +182,23 @@ Flickable {
 
                 title: "Projects"
                 subtitle: "Project tasks and deadlines"
+                sectionId: "projects"
                 icon: "󰏗"
                 items: root.categoryItems("projects")
                 danger: false
                 busy: root.busy
+                expanded: root.expandedSection === "projects"
+
+                onToggleRequested: function(sectionId) {
+                    root.toggleSection(sectionId)
+                }
 
                 onRemoveRequested: function(itemId) {
                     root.removeRequested(itemId)
+                }
+
+                onDoneRequested: function(itemId, done) {
+                    root.doneRequested(itemId, done)
                 }
             }
 
@@ -136,13 +207,23 @@ Flickable {
 
                 title: "To-do"
                 subtitle: "General tasks"
+                sectionId: "todo"
                 icon: "󰄬"
                 items: root.categoryItems("todo")
                 danger: false
                 busy: root.busy
+                expanded: root.expandedSection === "todo"
+
+                onToggleRequested: function(sectionId) {
+                    root.toggleSection(sectionId)
+                }
 
                 onRemoveRequested: function(itemId) {
                     root.removeRequested(itemId)
+                }
+
+                onDoneRequested: function(itemId, done) {
+                    root.doneRequested(itemId, done)
                 }
             }
         }
@@ -154,7 +235,7 @@ Flickable {
             visible: !root.isOverview() && root.hasAnyItems()
 
             Repeater {
-                model: root.safeItems()
+                model: root.sortedItems(root.safeItems())
 
                 UniCard {
                     required property var modelData
@@ -173,6 +254,10 @@ Flickable {
                     onRemoveRequested: function(itemId) {
                         root.removeRequested(itemId)
                     }
+
+                    onDoneRequested: function(itemId, done) {
+                        root.doneRequested(itemId, done)
+                    }
                 }
             }
         }
@@ -181,15 +266,38 @@ Flickable {
             visible: !root.hasAnyItems()
 
             width: parent.width
-            height: 160
+            height: 178
 
             cardRadius: 28
-            cardColor: Theme.pillBg
+            cardColor: Qt.rgba(1, 1, 1, 0.035)
             cardBorderColor: WalTheme.border
 
             Column {
                 anchors.centerIn: parent
-                spacing: 8
+                spacing: 10
+
+                Rectangle {
+                    width: 46
+                    height: 46
+                    radius: 18
+
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    color: WalTheme.accentAlpha
+                    border.width: 1
+                    border.color: WalTheme.accent
+
+                    Text {
+                        anchors.centerIn: parent
+
+                        text: root.isOverview() ? "󰄬" : "+"
+                        color: WalTheme.fg
+
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 19
+                        font.bold: true
+                    }
+                }
 
                 HeadingText {
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -203,6 +311,9 @@ Flickable {
 
                 MetaText {
                     anchors.horizontalCenter: parent.horizontalCenter
+                    width: Math.min(260, root.width - 42)
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
 
                     text: root.isOverview()
                         ? "Add tasks, projects, or exams to start tracking them."
@@ -224,19 +335,23 @@ Flickable {
 
         property string title: ""
         property string subtitle: ""
+        property string sectionId: ""
         property string icon: ""
         property var items: []
         property bool danger: false
         property bool busy: false
+        property bool expanded: false
 
         signal removeRequested(string itemId)
+        signal doneRequested(string itemId, bool done)
+        signal toggleRequested(string sectionId)
 
         spacing: 8
         visible: Array.isArray(items) && items.length > 0
 
         function safeItems() {
             if (Array.isArray(section.items))
-                return section.items
+                return root.sortedItems(section.items)
 
             return []
         }
@@ -246,7 +361,7 @@ Flickable {
             height: 54
 
             cardRadius: 22
-            cardColor: Theme.pillBg
+            cardColor: section.danger && section.expanded ? WalTheme.urgentAlpha : Qt.rgba(1, 1, 1, 0.045)
             cardBorderColor: section.danger ? WalTheme.urgent : WalTheme.border
 
             Row {
@@ -283,7 +398,7 @@ Flickable {
                 }
 
                 Column {
-                    width: Math.max(0, parent.width - 96)
+                    width: Math.max(0, parent.width - 138)
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
 
@@ -305,7 +420,9 @@ Flickable {
                 Badge {
                     anchors.verticalCenter: parent.verticalCenter
 
-                    text: section.safeItems().length + ""
+                    text: section.safeItems().length === 1
+                        ? "1 item"
+                        : section.safeItems().length + " items"
 
                     accent: !section.danger
                     danger: section.danger
@@ -316,12 +433,45 @@ Flickable {
                     fontSize: 11
                     horizontalPadding: 12
                 }
+
+                Rectangle {
+                    width: 26
+                    height: 26
+                    radius: 13
+
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    color: Qt.rgba(1, 1, 1, 0.05)
+                    border.width: 1
+                    border.color: WalTheme.border
+
+                    Text {
+                        anchors.centerIn: parent
+
+                        text: section.expanded ? "" : ""
+                        color: WalTheme.fgMuted
+
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 11
+                        font.bold: true
+                    }
+                }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+
+                onClicked: {
+                    section.toggleRequested(section.sectionId)
+                }
             }
         }
 
         Column {
             width: section.width
             spacing: 8
+            visible: section.expanded
 
             Repeater {
                 model: section.safeItems()
@@ -342,6 +492,10 @@ Flickable {
 
                     onRemoveRequested: function(itemId) {
                         section.removeRequested(itemId)
+                    }
+
+                    onDoneRequested: function(itemId, done) {
+                        section.doneRequested(itemId, done)
                     }
                 }
             }

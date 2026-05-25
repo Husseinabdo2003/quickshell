@@ -14,16 +14,18 @@ Card {
     property string priority: ""
     property string status: ""
     property bool busy: false
+    readonly property bool done: String(root.status || "").toLowerCase().trim() === "done"
 
     signal removeRequested(string itemId)
+    signal doneRequested(string itemId, bool done)
 
-    height: 88
+    height: 84
 
-    cardRadius: 30
+    cardRadius: 24
     cardColor: Theme.pillBg
-    cardBorderColor: WalTheme.border
+    cardBorderColor: root.done ? Qt.rgba(1, 1, 1, 0.16) : root.priority === "high" ? WalTheme.urgent : WalTheme.border
 
-    opacity: root.busy ? 0.65 : 1.0
+    opacity: root.busy ? 0.65 : root.done ? 0.72 : 1.0
 
     Behavior on opacity {
         NumberAnimation {
@@ -34,21 +36,52 @@ Card {
 
     Row {
         anchors.fill: parent
-        anchors.margins: 14
-        spacing: 12
+        anchors.margins: 12
+        spacing: 10
 
-        AccentStrip {
-            height: Math.max(0, parent.height - 10)
-            danger: root.priority === "high"
-            accent: root.priority !== "high"
+        Rectangle {
+            width: 30
+            height: 30
+            radius: 15
 
             anchors.verticalCenter: parent.verticalCenter
+
+            color: root.done
+                ? WalTheme.accentAlpha
+                : Qt.rgba(1, 1, 1, 0.04)
+
+            border.width: 1
+            border.color: root.done
+                ? WalTheme.accent
+                : root.priority === "high"
+                    ? WalTheme.urgent
+                    : WalTheme.border
+
+            Text {
+                anchors.centerIn: parent
+
+                text: root.done ? "✓" : ""
+                color: WalTheme.fg
+
+                font.pixelSize: 15
+                font.bold: true
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+
+                onClicked: {
+                    if (!root.busy)
+                        root.doneRequested(root.itemId, !root.done)
+                }
+            }
         }
 
         Column {
-            width: Math.max(0, parent.width - 72)
+            width: Math.max(0, parent.width - 78)
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 7
+            spacing: 6
 
             Row {
                 width: parent.width
@@ -69,6 +102,8 @@ Card {
 
                     text: root.title
                     font.pixelSize: 15
+                    muted: root.done
+                    font.strikeout: root.done
                     elide: Text.ElideRight
                 }
             }
@@ -78,19 +113,20 @@ Card {
                 spacing: 10
 
                 MetaText {
-                    text: root.course
+                    text: root.course.length > 0 ? root.course : "General"
                     width: Math.max(0, parent.width * 0.40)
                     elide: Text.ElideRight
                 }
 
                 MetaText {
-                    text: root.date
+                    text: root.date.length > 0 ? root.date : "No date"
                     elide: Text.ElideRight
                 }
 
                 MetaText {
-                    text: root.status
+                    text: root.status.length > 0 ? root.status : "upcoming"
                     width: Math.max(0, parent.width * 0.25)
+                    accentText: root.done
                     elide: Text.ElideRight
                 }
             }
@@ -115,4 +151,5 @@ Card {
             }
         }
     }
+
 }

@@ -1,28 +1,40 @@
 import QtQuick
 
 import "../../components"
+import "../../theme"
 
-Row {
+Card {
     id: root
 
     property string title: "To-do list"
     property int itemCount: 0
 
     width: parent ? parent.width : 390
-    height: 24
+    height: 28
 
-    TitleText {
-        text: root.title
-        font.pixelSize: 16
+    cardRadius: 0
+    cardColor: "transparent"
+    cardBorderWidth: 0
+    cardBorderColor: "transparent"
 
-        width: Math.max(0, parent.width - 80)
-        anchors.verticalCenter: parent.verticalCenter
-        elide: Text.ElideRight
-    }
+    Row {
+        anchors.fill: parent
+        anchors.leftMargin: 2
+        anchors.rightMargin: 2
+        spacing: 10
 
-    MetaText {
-        text: root.itemCount + " items"
+        TitleText {
+            text: root.title
+            font.pixelSize: 15
 
-        anchors.verticalCenter: parent.verticalCenter
+            width: Math.max(0, parent.width - 84)
+            anchors.verticalCenter: parent.verticalCenter
+            elide: Text.ElideRight
+        }
+
+        MetaText {
+            text: root.itemCount === 1 ? "1 item" : root.itemCount + " items"
+            anchors.verticalCenter: parent.verticalCenter
+        }
     }
 }

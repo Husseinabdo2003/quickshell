@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Services.Notifications
 
 Item {
@@ -393,6 +394,127 @@ Item {
             return appName[0].toUpperCase()
 
         return "N"
+    }
+
+    function normalizedMatchValue(value) {
+        return root.cleanString(value)
+            .toLowerCase()
+            .replace(".desktop", "")
+            .replace("org.", "")
+            .replace("com.", "")
+    }
+
+    function windowValue(window, key) {
+        if (!window)
+            return ""
+
+        try {
+            return root.cleanString(window[key])
+        } catch (error) {
+            return ""
+        }
+    }
+
+    function windowAddress(window) {
+        const raw = root.windowValue(window, "address")
+
+        if (raw.length === 0)
+            return ""
+
+        if (raw.startsWith("0x"))
+            return raw
+
+        return "0x" + raw
+    }
+
+    function focusCandidatesFor(notification) {
+        const candidates = []
+
+        function add(value) {
+            const clean = root.normalizedMatchValue(value)
+
+            if (clean.length > 0 && !candidates.includes(clean))
+                candidates.push(clean)
+        }
+
+        if (!notification)
+            return candidates
+
+        add(notification.desktopEntry)
+        add(notification.appName)
+        add(notification.groupKey)
+
+        const fallbacks = root.fallbackIconCandidatesFor(notification)
+
+        for (let i = 0; i < fallbacks.length; i++)
+            add(fallbacks[i])
+
+        return candidates
+    }
+
+    function windowMatchesNotification(window, candidates) {
+        if (!window || candidates.length === 0)
+            return false
+
+        const values = [
+            root.windowValue(window, "appId"),
+            root.windowValue(window, "class"),
+            root.windowValue(window, "initialClass"),
+            root.windowValue(window, "initialTitle"),
+            root.windowValue(window, "title")
+        ]
+
+        for (let i = 0; i < values.length; i++) {
+            const value = root.normalizedMatchValue(values[i])
+
+            if (value.length === 0)
+                continue
+
+            for (let j = 0; j < candidates.length; j++) {
+                const candidate = candidates[j]
+
+                if (
+                    value === candidate
+                    || value.includes(candidate)
+                    || candidate.includes(value)
+                ) {
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
+
+    function focusAppFor(notification) {
+        const candidates = root.focusCandidatesFor(notification)
+
+        if (candidates.length === 0)
+            return false
+
+        try {
+            Hyprland.refreshToplevels()
+        } catch (error) {
+        }
+
+        const windows = Hyprland.toplevels.values
+
+        for (let i = 0; i < windows.length; i++) {
+            const window = windows[i]
+
+            if (!root.windowMatchesNotification(window, candidates))
+                continue
+
+            const address = root.windowAddress(window)
+
+            if (address.length === 0)
+                continue
+
+            Hyprland.dispatch("focuswindow address:" + address)
+            return true
+        }
+
+        return false
     }
 
     function rebuildGroups() {

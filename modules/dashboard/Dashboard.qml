@@ -21,6 +21,9 @@ PopupWindow {
     readonly property int addPopupWidth: 430
     readonly property int gapFromBar: 6
     readonly property int leftMargin: Theme.margin
+    readonly property int popupHeight: anchorWindow && anchorWindow.screen
+        ? Math.max(panelHeight + 60, anchorWindow.screen.height - Theme.barHeight - gapFromBar)
+        : panelHeight + 60
 
     readonly property int openDuration: 240
     readonly property int closeDuration: 220
@@ -29,7 +32,7 @@ PopupWindow {
     readonly property int closedY: -panelHeight - 34
 
     implicitWidth: anchorWindow ? anchorWindow.width : panelWidth
-    implicitHeight: panelHeight + 60
+    implicitHeight: popupHeight
 
     visible: root.windowAlive
     color: "transparent"
@@ -38,9 +41,9 @@ PopupWindow {
     anchor.rect.x: 0
     anchor.rect.y: Theme.barHeight + gapFromBar
     anchor.rect.width: anchorWindow ? anchorWindow.width : panelWidth
-    anchor.rect.height: panelHeight + 60
+    anchor.rect.height: popupHeight
 
-    grabFocus: false
+    grabFocus: root.addOpen && ShellState.dashboardOpen
 
     HyprlandFocusGrab {
         id: focusGrab
@@ -75,6 +78,10 @@ PopupWindow {
 
         onRemoveFailed: function(exitCode) {
             console.log("Dashboard remove failed:", exitCode)
+        }
+
+        onDoneFailed: function(exitCode) {
+            console.log("Dashboard done failed:", exitCode)
         }
     }
 
@@ -147,6 +154,8 @@ PopupWindow {
         slideAnimation.start()
         opacityAnimation.start()
         scaleAnimation.start()
+
+        focusTimer.restart()
     }
 
     function closeDashboardAnimation() {
@@ -176,11 +185,34 @@ PopupWindow {
         return dashboardState.filteredItems(DashboardData.items)
     }
 
+    function itemCountFor(category) {
+        return dashboardState.filteredItemsFor(DashboardData.items, category).length
+    }
+
+    function highPriorityCount() {
+        return dashboardState.highPriorityItems(DashboardData.items).length
+    }
+
     function centeredAddPopupX() {
         return Math.max(
             0,
             Math.round((root.implicitWidth - root.addPopupWidth) / 2)
         )
+    }
+
+    function pointInside(item, x, y) {
+        return item.visible
+            && x >= item.x
+            && x <= item.x + item.width
+            && y >= item.y
+            && y <= item.y + item.height
+    }
+
+    function closeFromOutside() {
+        if (dashboardActions.busy)
+            return
+
+        ShellState.closeDashboard()
     }
 
     Timer {
@@ -192,6 +224,23 @@ PopupWindow {
         onTriggered: {
             if (!ShellState.dashboardOpen)
                 root.windowAlive = false
+        }
+    }
+
+    Timer {
+        id: focusTimer
+
+        interval: Animations.instant
+        repeat: false
+
+        onTriggered: {
+            if (!ShellState.dashboardOpen)
+                return
+
+            if (root.addOpen)
+                addPopup.focusTitle()
+            else
+                panel.forceActiveFocus()
         }
     }
 
@@ -212,9 +261,18 @@ PopupWindow {
         scale: 0.985
 
         enabled: ShellState.dashboardOpen
+        focus: true
 
         layer.enabled: true
         layer.smooth: true
+
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Escape) {
+                root.closeFromOutside()
+                event.accepted = true
+                return
+            }
+        }
 
         NumberAnimation {
             id: slideAnimation
@@ -262,6 +320,8 @@ PopupWindow {
                 width: parent.width
                 addOpen: root.addOpen
                 busy: dashboardActions.busy
+                itemCount: root.itemCountFor("all")
+                highPriorityCount: root.highPriorityCount()
 
                 onAddClicked: {
                     if (dashboardActions.busy)
@@ -269,11 +329,8 @@ PopupWindow {
 
                     root.addOpen = !root.addOpen
 
-                    if (root.addOpen) {
-                        Qt.callLater(function() {
-                            addPopup.focusTitle()
-                        })
-                    }
+                    if (root.addOpen)
+                        focusTimer.restart()
                 }
             }
 
@@ -285,6 +342,10 @@ PopupWindow {
                 width: parent.width
                 activeCategory: dashboardState.activeCategory
                 enabled: !dashboardActions.busy
+                allCount: root.itemCountFor("all")
+                todoCount: root.itemCountFor("todo")
+                projectsCount: root.itemCountFor("projects")
+                examsCount: root.itemCountFor("exams")
 
                 onCategorySelected: function(category) {
                     dashboardState.activeCategory = category
@@ -302,7 +363,7 @@ PopupWindow {
                 id: dashboardList
 
                 width: parent.width
-                height: Math.max(0, parent.height - 146)
+                height: Math.max(0, parent.height - 156)
 
                 activeCategory: dashboardState.activeCategory
                 items: root.filteredItems()
@@ -310,6 +371,10 @@ PopupWindow {
 
                 onRemoveRequested: function(itemId) {
                     dashboardActions.removeItem(itemId)
+                }
+
+                onDoneRequested: function(itemId, done) {
+                    dashboardActions.setDone(itemId, done)
                 }
             }
         }
@@ -331,6 +396,10 @@ PopupWindow {
                 root.addOpen = false
         }
 
+        onCloseRequested: {
+            root.closeFromOutside()
+        }
+
         onAddRequested: function(type, title, course, date, priority, status) {
             dashboardActions.addItem(
                 dashboardState.addCategory,
@@ -341,6 +410,25 @@ PopupWindow {
                 priority,
                 status
             )
+        }
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        enabled: ShellState.dashboardOpen
+        z: 1000
+
+        onPressed: function(mouse) {
+            if (
+                root.pointInside(panel, mouse.x, mouse.y)
+                || root.pointInside(addPopup, mouse.x, mouse.y)
+            ) {
+                mouse.accepted = false
+                return
+            }
+
+            root.closeFromOutside()
+            mouse.accepted = true
         }
     }
 

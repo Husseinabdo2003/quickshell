@@ -12,6 +12,7 @@ Item {
     signal toggleRequested()
     signal clearRequested()
     signal dismissRequested(var notification)
+    signal activateRequested(var notification)
 
     readonly property var items: groupData && groupData.items ? groupData.items : []
     readonly property var latest: groupData && groupData.latest ? groupData.latest : null
@@ -25,7 +26,7 @@ Item {
         ? singleCard.height
         : expanded
             ? expandedColumn.implicitHeight
-            : 104
+            : 108
 
     Behavior on height {
         NumberAnimation {
@@ -83,6 +84,10 @@ Item {
         onCloseRequested: function(notification) {
             root.dismissRequested(notification)
         }
+
+        onActivated: function(notification) {
+            root.activateRequested(notification)
+        }
     }
 
     Item {
@@ -91,11 +96,11 @@ Item {
         visible: root.stacked && !root.expanded
 
         width: parent.width
-        height: 104
+        height: 108
 
         Card {
             width: Math.max(0, parent.width - 24)
-            height: 76
+            height: 78
 
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
@@ -111,7 +116,7 @@ Item {
 
         Card {
             width: Math.max(0, parent.width - 12)
-            height: 82
+            height: 84
 
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
@@ -129,7 +134,7 @@ Item {
             id: collapsedCard
 
             width: parent.width
-            height: 88
+            height: 90
 
             anchors.top: parent.top
             anchors.horizontalCenter: parent.horizontalCenter
@@ -145,6 +150,10 @@ Item {
             showTime: true
 
             notificationRadius: 26
+
+            onActivated: function(notification) {
+                root.toggleRequested()
+            }
         }
 
         Badge {
@@ -164,9 +173,18 @@ Item {
             muted: false
         }
 
-        MouseArea {
-            anchors.fill: collapsedCard
-            cursorShape: Qt.PointingHandCursor
+        IconButton {
+            anchors.right: collapsedCard.right
+            anchors.bottom: collapsedCard.bottom
+            anchors.rightMargin: 42
+            anchors.bottomMargin: 10
+
+            buttonSize: 24
+            buttonRadius: 12
+            iconSize: 10
+
+            icon: ""
+            muted: true
 
             onClicked: {
                 root.toggleRequested()
@@ -200,7 +218,7 @@ Item {
         visible: root.stacked && root.expanded
 
         width: parent.width
-        spacing: 8
+        spacing: 9
 
         opacity: root.expanded ? 1 : 0
 
@@ -226,13 +244,8 @@ Item {
 
             notificationRadius: 26
 
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-
-                onClicked: {
-                    root.toggleRequested()
-                }
+            onActivated: function(notification) {
+                root.activateRequested(notification)
             }
 
             IconButton {
@@ -294,6 +307,10 @@ Item {
 
                 onCloseRequested: function(notification) {
                     root.dismissRequested(notification)
+                }
+
+                onActivated: function(notification) {
+                    root.activateRequested(notification)
                 }
             }
         }

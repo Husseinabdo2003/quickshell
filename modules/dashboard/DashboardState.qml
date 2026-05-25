@@ -54,13 +54,34 @@ QtObject {
     }
 
     function filteredItems(items) {
-        const list = root.safeItems(items)
+        return root.filteredItemsFor(items, root.activeCategory)
+    }
 
-        if (root.activeCategory === "all")
+    function filteredItemsFor(items, category) {
+        const list = root.safeItems(items)
+        const cleanCategory = String(category || "all")
+
+        if (cleanCategory === "all")
             return list.slice()
 
         return list.filter(function(item) {
-            return root.normalizedCategory(item) === root.activeCategory
+            return root.normalizedCategory(item) === cleanCategory
+        })
+    }
+
+    function highPriorityItems(items) {
+        return root.safeItems(items).filter(function(item) {
+            if (!item || item.priority === undefined || item.priority === null)
+                return false
+
+            try {
+                const priority = String(item.priority).toLowerCase().trim()
+                const status = String(item.status || "").toLowerCase().trim()
+
+                return priority === "high" && status !== "done"
+            } catch (error) {
+                return false
+            }
         })
     }
 }

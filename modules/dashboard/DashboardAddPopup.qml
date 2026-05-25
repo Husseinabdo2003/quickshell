@@ -12,6 +12,7 @@ PopupPanel {
     property bool busy: false
 
     signal cancelRequested()
+    signal closeRequested()
     signal addRequested(
         string type,
         string title,
@@ -42,9 +43,27 @@ PopupPanel {
         typeInput.text = root.defaultType
     }
 
+    onOpenedChanged: {
+        if (root.opened)
+            root.requestTitleFocus()
+        else
+            focusTimer.stop()
+    }
+
+    onBusyChanged: {
+        if (root.opened && !root.busy)
+            root.requestTitleFocus()
+    }
+
+    function requestTitleFocus() {
+        if (!root.opened || root.busy)
+            return
+
+        focusTimer.restart()
+    }
+
     function focusTitle() {
-        if (!root.busy)
-            titleInput.forceInputFocus()
+        root.requestTitleFocus()
     }
 
     function clearAfterAdd() {
@@ -77,6 +96,25 @@ PopupPanel {
         NumberAnimation {
             duration: 140
             easing.type: Easing.OutCubic
+        }
+    }
+
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) {
+            root.closeRequested()
+            event.accepted = true
+        }
+    }
+
+    Timer {
+        id: focusTimer
+
+        interval: Animations.instant
+        repeat: false
+
+        onTriggered: {
+            if (root.opened && !root.busy)
+                titleInput.forceInputFocus()
         }
     }
 

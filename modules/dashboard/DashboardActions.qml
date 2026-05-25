@@ -7,16 +7,19 @@ import "../../services"
 Item {
     id: root
 
-    readonly property bool busy: addProcess.running || removeProcess.running
+    readonly property bool busy: addProcess.running || removeProcess.running || doneProcess.running
 
     property string luaBinary: "lua"
     property string addScript: Quickshell.env("HOME") + "/.config/hypr/scripts/dashboard-add.lua"
     property string removeScript: Quickshell.env("HOME") + "/.config/hypr/scripts/dashboard-remove.lua"
+    property string doneScript: Quickshell.env("HOME") + "/.config/quickshell/scripts/dashboard-toggle-done.lua"
 
     signal addFinished()
     signal removeFinished()
+    signal doneFinished()
     signal addFailed(int exitCode)
     signal removeFailed(int exitCode)
+    signal doneFailed(int exitCode)
 
     function clean(value) {
         try {
@@ -68,6 +71,25 @@ Item {
         removeProcess.running = true
     }
 
+    function setDone(itemId, done) {
+        if (root.busy)
+            return
+
+        const cleanId = root.clean(itemId)
+
+        if (cleanId.length === 0)
+            return
+
+        doneProcess.command = [
+            root.luaBinary,
+            root.doneScript,
+            cleanId,
+            done ? "done" : "upcoming"
+        ]
+
+        doneProcess.running = true
+    }
+
     Process {
         id: addProcess
 
@@ -115,6 +137,31 @@ Item {
             }
 
             root.removeFailed(exitCode)
+        }
+    }
+
+    Process {
+        id: doneProcess
+
+        command: []
+        running: false
+
+        stdout: StdioCollector {}
+        stderr: StdioCollector {
+            onStreamFinished: {
+                if (this.text.trim().length > 0)
+                    console.log("Dashboard done stderr:", this.text.trim())
+            }
+        }
+
+        onExited: function(exitCode) {
+            if (exitCode === 0) {
+                DashboardData.load()
+                root.doneFinished()
+                return
+            }
+
+            root.doneFailed(exitCode)
         }
     }
 }

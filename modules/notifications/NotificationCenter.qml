@@ -12,7 +12,7 @@ PanelWindow {
 
     property bool windowAlive: false
 
-    readonly property int panelWidth: 372
+    readonly property int panelWidth: 396
     readonly property int openDuration: 220
     readonly property int closeDuration: 200
 
@@ -90,6 +90,15 @@ PanelWindow {
         } catch (error) {
             console.log("Notification center rebuild failed:", error)
         }
+    }
+
+    function groupCountText() {
+        const groups = NotificationService.appGroups.length
+
+        if (groups === 1)
+            return "1 app"
+
+        return groups + " apps"
     }
 
     function openCenterAnimation() {
@@ -226,70 +235,171 @@ PanelWindow {
         Column {
             anchors.fill: parent
             anchors.margins: 16
-            spacing: 12
+            spacing: 14
 
-            Row {
+            Card {
                 width: parent.width
-                height: 34
+                height: 76
 
-                HeadingText {
-                    id: titleText
+                cardRadius: 24
+                cardColor: Qt.rgba(1, 1, 1, 0.045)
+                cardBorderColor: WalTheme.border
 
-                    anchors.verticalCenter: parent.verticalCenter
+                Row {
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: 12
 
-                    text: "Notifications"
-                    font.pixelSize: 17
-                }
+                    Rectangle {
+                        width: 42
+                        height: 42
+                        radius: 16
 
-                Item {
-                    width: Math.max(
-                        0,
-                        parent.width - titleText.implicitWidth - clearButton.width
-                    )
+                        anchors.verticalCenter: parent.verticalCenter
 
-                    height: 1
-                }
+                        color: NotificationService.notificationCount > 0
+                            ? WalTheme.accentAlpha
+                            : Qt.rgba(1, 1, 1, 0.06)
 
-                ActionButton {
-                    id: clearButton
+                        border.width: 1
+                        border.color: NotificationService.notificationCount > 0
+                            ? WalTheme.accent
+                            : WalTheme.border
 
-                    width: 74
-                    height: 28
+                        Text {
+                            anchors.centerIn: parent
 
-                    text: "Clear all"
-                    muted: true
-                    buttonRadius: 14
-                    fontSize: Theme.fontSize
+                            text: "󰂚"
+                            color: WalTheme.fg
 
-                    enabled: NotificationService.appGroups.length > 0
-                    opacity: enabled ? 1.0 : 0.45
+                            font.family: "JetBrainsMono Nerd Font"
+                            font.pixelSize: 19
+                            font.bold: true
+                        }
+                    }
 
-                    onClicked: {
-                        NotificationService.clearAll()
+                    Column {
+                        width: Math.max(0, parent.width - 42 - clearButton.width - parent.spacing * 2)
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 4
+
+                        HeadingText {
+                            width: parent.width
+
+                            text: "Notifications"
+                            font.pixelSize: 18
+                            elide: Text.ElideRight
+                        }
+
+                        Row {
+                            width: parent.width
+                            height: 24
+                            spacing: 8
+
+                            Badge {
+                                text: NotificationService.notificationCount + " total"
+                                accent: NotificationService.notificationCount > 0
+                                muted: NotificationService.notificationCount === 0
+                                badgeHeight: 22
+                                badgeRadius: 11
+                                fontSize: 10
+                                horizontalPadding: 12
+                            }
+
+                            Badge {
+                                text: root.groupCountText()
+                                accent: false
+                                muted: true
+                                badgeHeight: 22
+                                badgeRadius: 11
+                                fontSize: 10
+                                horizontalPadding: 12
+                            }
+                        }
+                    }
+
+                    IconButton {
+                        id: clearButton
+
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        buttonSize: 34
+                        buttonRadius: 17
+                        iconSize: 13
+
+                        icon: "󰎟"
+                        muted: true
+
+                        enabled: NotificationService.appGroups.length > 0
+                        opacity: enabled ? 1.0 : 0.42
+
+                        onClicked: {
+                            NotificationService.clearAll()
+                        }
                     }
                 }
             }
 
-            Divider {
-                width: parent.width
-                lineOpacity: 0.45
-            }
-
-            MetaText {
+            Card {
                 visible: NotificationService.appGroups.length === 0
 
-                anchors.horizontalCenter: parent.horizontalCenter
+                width: parent.width
+                height: 168
 
-                text: "No notifications"
-                font.pixelSize: Theme.fontSize
-                opacity: 0.82
+                cardRadius: 28
+                cardColor: Qt.rgba(1, 1, 1, 0.035)
+                cardBorderColor: WalTheme.border
+
+                Column {
+                    anchors.centerIn: parent
+                    spacing: 10
+
+                    Rectangle {
+                        width: 46
+                        height: 46
+                        radius: 18
+
+                        anchors.horizontalCenter: parent.horizontalCenter
+
+                        color: Qt.rgba(1, 1, 1, 0.06)
+                        border.width: 1
+                        border.color: WalTheme.border
+
+                        Text {
+                            anchors.centerIn: parent
+
+                            text: "󰂛"
+                            color: WalTheme.fgMuted
+
+                            font.family: "JetBrainsMono Nerd Font"
+                            font.pixelSize: 20
+                            font.bold: true
+                        }
+                    }
+
+                    HeadingText {
+                        anchors.horizontalCenter: parent.horizontalCenter
+
+                        text: "All clear"
+                        font.pixelSize: 17
+                    }
+
+                    MetaText {
+                        anchors.horizontalCenter: parent.horizontalCenter
+
+                        text: "No notifications"
+                        font.pixelSize: Theme.fontSize
+                        opacity: 0.82
+                    }
+                }
             }
 
             Flickable {
                 id: flick
 
                 width: parent.width
-                height: Math.max(0, parent.height - 60)
+                height: Math.max(0, parent.height - 90)
+                visible: NotificationService.appGroups.length > 0
 
                 contentHeight: groupsColumn.implicitHeight
                 clip: true
@@ -323,6 +433,11 @@ PanelWindow {
 
                             onDismissRequested: function(notification) {
                                 NotificationService.dismiss(notification)
+                            }
+
+                            onActivateRequested: function(notification) {
+                                if (NotificationService.focusAppFor(notification))
+                                    ShellState.closeNotificationCenter()
                             }
                         }
                     }

@@ -24,6 +24,7 @@ Card {
     readonly property bool hasResolvedIcon: resolvedIconSource.length > 0
 
     signal closeRequested(var notification)
+    signal activated(var notification)
 
     function safeValue(key) {
         if (!root.notification)
@@ -169,13 +170,22 @@ Card {
 
     width: 320
     height: compact
-        ? 88
-        : Math.max(90, contentColumn.implicitHeight + 28)
+        ? 90
+        : Math.max(94, contentColumn.implicitHeight + 30)
 
     cardRadius: root.notificationRadius
     cardColor: Theme.pillBg
     cardBorderColor: WalTheme.border
     cardBorderWidth: 1
+
+    MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+
+        onClicked: {
+            root.activated(root.notification)
+        }
+    }
 
     Row {
         anchors.fill: parent
@@ -189,7 +199,7 @@ Card {
 
             width: root.showAppIcon ? 38 : 0
             height: 38
-            radius: 12
+            radius: 14
 
             anchors.verticalCenter: parent.verticalCenter
 
@@ -250,7 +260,7 @@ Card {
                 text: root.notificationAppName()
                 boldText: true
                 accentText: true
-                font.pixelSize: 11
+                font.pixelSize: 10
                 opacity: 0.92
                 elide: Text.ElideRight
             }
@@ -262,7 +272,7 @@ Card {
                     ? root.notificationSummary()
                     : root.notificationBody()
 
-                font.pixelSize: compact ? 12 : 13
+                font.pixelSize: compact ? 12 : 14
                 elide: Text.ElideRight
             }
 
@@ -288,7 +298,7 @@ Card {
             visible: root.showTime || root.showCloseButton
 
             width: 54
-            spacing: 8
+            spacing: 9
 
             Item {
                 width: parent.width
@@ -301,7 +311,7 @@ Card {
                     anchors.verticalCenter: parent.verticalCenter
 
                     text: root.formattedTime()
-                    font.pixelSize: 11
+                    font.pixelSize: 10
                     opacity: 0.85
                 }
             }
@@ -329,4 +339,5 @@ Card {
             }
         }
     }
+
 }
